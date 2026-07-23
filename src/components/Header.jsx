@@ -5,10 +5,14 @@ export default function Header() {
   const { sessao, perfil, sair } = useAuth()
   const navigate = useNavigate()
 
+  // Só resolve o destino quando o papel já é conhecido. Enquanto `perfil`
+  // não chega, o botão não aparece — melhor do que aparecer e levar ao
+  // painel errado.
   const painel =
     perfil?.role === 'profissional' ? '/painel-profissional'
     : perfil?.role === 'admin' ? '/admin'
-    : '/painel'
+    : perfil?.role === 'cliente' ? '/painel'
+    : null
 
   async function handleSair() {
     await sair()
@@ -21,11 +25,19 @@ export default function Header() {
       <nav style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
         {sessao ? (
           <>
-            <Link to={painel} className="btn ghost sm">Meu painel</Link>
+            {painel && <Link to={painel} className="btn ghost sm">Meu painel</Link>}
             <button className="btn ghost sm" onClick={handleSair}>Sair</button>
           </>
         ) : (
           <>
+            <Link to="/cadastrar?tipo=profissional" className="btn ghost sm">Sou profissional</Link>
+            <Link to="/entrar" className="btn sm">Entrar</Link>
+          </>
+        )}
+      </nav>
+    </header>
+  )
+}
             <Link to="/cadastrar?tipo=profissional" className="btn ghost sm">Sou profissional</Link>
             <Link to="/entrar" className="btn sm">Entrar</Link>
           </>
