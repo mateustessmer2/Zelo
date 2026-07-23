@@ -38,11 +38,3 @@ export default function Header() {
     </header>
   )
 }
-            <Link to="/cadastrar?tipo=profissional" className="btn ghost sm">Sou profissional</Link>
-            <Link to="/entrar" className="btn sm">Entrar</Link>
-          </>
-        )}
-      </nav>
-    </header>
-  )
-}
