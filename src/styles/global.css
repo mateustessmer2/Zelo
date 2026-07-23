@@ -1,0 +1,124 @@
+/* ============================================================================
+   DESIGN TOKENS
+   ----------------------------------------------------------------------------
+   Verde-sálvia como cor de confiança (é o que o produto vende), off-white
+   quente para o fundo, coral reservado só para ações. Fraunces nos títulos
+   dá personalidade sem virar decoração; Inter no corpo mantém legível no
+   celular, que é onde a maioria vai usar.
+   ============================================================================ */
+:root{
+  --sage-900:#25352b; --sage-700:#3a5244; --sage-500:#6a8570; --sage-100:#dfe7e0;
+  --cream:#f7f4ee; --paper:#fffdf9;
+  --coral:#e07856; --coral-dark:#c95f3f;
+  --ink:#1c241f; --muted:#71786f; --line:#e6e1d7;
+  --amber:#b8862c; --amber-bg:#faf1dd;
+  --green:#3f7d54; --green-bg:#e3f0e7;
+  --red:#a8443a; --red-bg:#f8e6e3;
+  --radius:20px;
+  --shadow:0 1px 2px rgba(30,40,30,.04),0 12px 32px rgba(30,40,30,.07);
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  font-family:'Inter',system-ui,sans-serif;
+  background:var(--cream); color:var(--ink);
+  -webkit-font-smoothing:antialiased; line-height:1.5;
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+.wrap{max-width:800px;margin:0 auto;padding:0 20px}
+
+/* Tipografia --------------------------------------------------------------- */
+h1,h2,h3{font-family:'Fraunces',serif;font-weight:500;color:var(--sage-900);letter-spacing:-.015em}
+h1{font-size:clamp(32px,7vw,50px);line-height:1.06}
+h2{font-size:26px;line-height:1.15}
+h3{font-size:16px;font-weight:600;letter-spacing:0}
+.lead{color:var(--muted);font-size:15px}
+
+/* Header ------------------------------------------------------------------- */
+.header{padding:18px 0;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line)}
+.logo{font-family:'Fraunces',serif;font-weight:600;font-size:21px;color:var(--sage-900);display:flex;align-items:center;gap:8px;text-decoration:none}
+.logo .dot{width:9px;height:9px;border-radius:50%;background:var(--coral)}
+
+/* Botões ------------------------------------------------------------------- */
+.btn{
+  background:var(--coral);color:#fff;border:none;border-radius:12px;
+  padding:13px 22px;font-size:14.5px;font-weight:600;cursor:pointer;
+  font-family:inherit;transition:.15s;text-decoration:none;display:inline-block;text-align:center;
+}
+.btn:hover{background:var(--coral-dark)}
+.btn:disabled{background:var(--sage-100);color:var(--sage-500);cursor:not-allowed}
+.btn.ghost{background:none;color:var(--sage-700);border:1.5px solid var(--line)}
+.btn.ghost:hover{background:var(--sage-100)}
+.btn.dark{background:var(--sage-900)}
+.btn.dark:hover{background:var(--sage-700)}
+.btn.full{width:100%}
+.btn.sm{padding:9px 16px;font-size:13px;border-radius:10px}
+
+/* Cards -------------------------------------------------------------------- */
+.card{background:var(--paper);border:1.5px solid var(--line);border-radius:var(--radius);padding:22px;margin-bottom:14px}
+
+/* Formulários -------------------------------------------------------------- */
+.field{margin-bottom:18px}
+.field label{display:block;font-size:14px;font-weight:600;color:var(--sage-900);margin-bottom:8px}
+.field input,.field select,.field textarea{
+  width:100%;padding:13px 15px;border:1.5px solid var(--line);border-radius:12px;
+  font-family:inherit;font-size:15px;background:var(--cream);color:var(--ink);
+}
+.field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--sage-500);background:var(--paper)}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+
+/* Chips -------------------------------------------------------------------- */
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chip{padding:9px 15px;border:1.5px solid var(--line);border-radius:999px;background:var(--cream);cursor:pointer;font-size:13.5px;font-weight:500;user-select:none;transition:.15s}
+.chip.on{background:var(--sage-900);color:#fff;border-color:var(--sage-900)}
+
+/* Avatar ------------------------------------------------------------------- */
+.avatar{
+  border-radius:16px;flex-shrink:0;
+  background:linear-gradient(135deg,var(--sage-500),var(--sage-700));
+  display:flex;align-items:center;justify-content:center;color:#fff;
+  font-family:'Fraunces',serif;font-weight:600;
+  width:56px;height:56px;font-size:22px;
+}
+.avatar.lg{width:92px;height:92px;font-size:34px;border-radius:22px}
+.avatar.sm{width:44px;height:44px;font-size:17px;border-radius:13px}
+
+/* Selos e status ----------------------------------------------------------- */
+.seal{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:600;color:var(--sage-700);background:var(--sage-100);padding:5px 10px;border-radius:999px}
+.seal.hi{background:var(--green-bg);color:var(--green)}
+.status{font-size:11.5px;font-weight:600;padding:4px 10px;border-radius:999px}
+.s-conf{background:var(--green-bg);color:var(--green)}
+.s-pend{background:var(--amber-bg);color:var(--amber)}
+.s-done{background:var(--sage-100);color:var(--sage-700)}
+.s-canc{background:var(--red-bg);color:var(--red)}
+
+.stars{color:var(--coral);letter-spacing:1px}
+
+/* Notas informativas ------------------------------------------------------- */
+.note{display:flex;gap:10px;border-radius:13px;padding:13px 15px;margin-top:14px}
+.note.neutral{background:var(--sage-100)}
+.note.neutral p{font-size:12.5px;color:var(--sage-700);line-height:1.5}
+.note.warn{background:var(--amber-bg);border:1px solid #ecd9a8}
+.note.warn p{font-size:12.8px;color:#6b5316;line-height:1.5}
+.note svg{flex-shrink:0;margin-top:2px}
+.note b{color:var(--sage-900)}
+
+/* Navegação secundária ----------------------------------------------------- */
+.subnav{display:flex;gap:22px;border-bottom:1px solid var(--line);overflow-x:auto;scrollbar-width:none}
+.subnav::-webkit-scrollbar{display:none}
+.snav{padding:14px 0;border:none;background:none;font-family:inherit;font-size:14px;font-weight:600;color:var(--muted);cursor:pointer;white-space:nowrap;border-bottom:2px solid transparent;margin-bottom:-1px}
+.snav.on{color:var(--sage-900);border-bottom-color:var(--coral)}
+
+/* Estados ------------------------------------------------------------------ */
+.empty{text-align:center;padding:40px 20px;color:var(--muted);font-size:14px}
+.loading{text-align:center;padding:40px;color:var(--muted);font-size:14px}
+.erro{background:var(--red-bg);color:var(--red);padding:13px 15px;border-radius:12px;font-size:13.5px;margin-bottom:14px}
+
+.fade-in{animation:fade .3s ease}
+@keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+@media (max-width:620px){
+  .row{grid-template-columns:1fr}
+}

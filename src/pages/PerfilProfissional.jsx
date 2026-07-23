@@ -1,0 +1,131 @@
+import { useEffect, useState } from 'react'
+import { useParams, useNavigate } from 'react-router-dom'
+import { obterProfissional, obterTrustScore, criarBooking } from '../lib/api'
+import { useAuth } from '../hooks/useAuth'
+import TrustScore from '../components/TrustScore'
+import Avaliacoes from '../components/Avaliacoes'
+
+export default function PerfilProfissional() {
+  const { id } = useParams()
+  const navigate = useNavigate()
+  const { sessao, perfil } = useAuth()
+
+  const [prof, setProf] = useState(null)
+  const [score, setScore] = useState(null)
+  const [erro, setErro] = useState(null)
+  const [contratando, setContratando] = useState(false)
+
+  useEffect(() => {
+    let ativo = true
+    Promise.all([obterProfissional(id), obterTrustScore(id, 'cliente_avalia_prof')])
+      .then(([p, s]) => { if (!ativo) return; setProf(p); setScore(s) })
+      .catch(() => ativo && setErro('Perfil não encontrado.'))
+    return () => { ativo = false }
+  }, [id])
+
+  async function contratar() {
+    if (!sessao) return navigate('/entrar')
+    setContratando(true)
+    try {
+      const categoriaId = prof.profissional_categorias?.[0]?.categorias?.id
+      const booking = await criarBooking({
+        clienteId: perfil.id,
+        profissionalId: prof.id,
+        categoriaId,
+        bairroId: perfil.bairro_id,
+        dataServico: new Date().toISOString().slice(0, 10),
+        turno: 'manha',
+        observacao: '',
+        valorCombinado: prof.valor_hora
+      })
+      navigate(`/painel?booking=${booking.id}`)
+    } catch {
+      setErro('Não foi possível criar a contratação.')
+    } finally {
+      setContratando(false)
+    }
+  }
+
+  if (erro) return <main className="wrap"><div className="empty">{erro}</div></main>
+  if (!prof) return <main className="wrap"><div className="loading">Carregando…</div></main>
+
+  const bairros = prof.profissional_bairros?.map((b) => b.bairros?.nome).filter(Boolean).join(', ')
+  const categorias = prof.profissional_categorias?.map((c) => c.categorias?.nome).filter(Boolean).join(', ')
+
+  return (
+    <main className="wrap fade-in" style={{ padding: '30px 0 60px' }}>
+      <div style={{ display: 'flex', gap: 18, alignItems: 'flex-start', marginBottom: 20 }}>
+        <div className="avatar lg">{prof.perfis?.nome?.[0] ?? '?'}</div>
+        <div>
+          <h2 style={{ fontSize: 25 }}>{prof.perfis?.nome}</h2>
+          <div style={{ fontSize: 14, color: 'var(--muted)', marginTop: 1 }}>
+            {prof.idade ? `${prof.idade} anos · ` : ''}{categorias}
+          </div>
+          <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', marginTop: 10 }}>
+            <span className="seal hi">✓ Identidade verificada</span>
+            <span className="seal hi">✓ Antecedentes checados</span>
+          </div>
+        </div>
+      </div>
+
+      <TrustScore
+        notaMedia={score?.nota_media}
+        total={score?.total_avaliacoes}
+        metricas={prof.tempo_resposta_min ? [{ label: 'tempo de resposta', valor: `${prof.tempo_resposta_min} min` }] : []}
+      />
+
+      {prof.descricao && (
+        <div className="card">
+          <h3>Sobre</h3>
+          <p style={{ fontSize: 14.5, lineHeight: 1.6 }}>{prof.descricao}</p>
+        </div>
+      )}
+
+      {prof.especialidades?.length > 0 && (
+        <div className="card">
+          <h3>Especialidades</h3>
+          <div className="chips">
+            {prof.especialidades.map((e) => <span key={e} className="chip">{e}</span>)}
+          </div>
+        </div>
+      )}
+
+      <div className="card">
+        <h3>Atendimento</h3>
+        <Linha k="Bairros" v={bairros || '—'} />
+        <Linha k="Valor por hora" v={prof.valor_hora ? `R$ ${prof.valor_hora}` : '—'} />
+        <Linha k="Valor por diária" v={prof.valor_diaria ? `R$ ${prof.valor_diaria}` : '—'} />
+      </div>
+
+      <Avaliacoes alvoId={prof.id} lado="cliente_avalia_prof" />
+
+      <div style={{
+        position: 'sticky', bottom: 0, background: 'var(--paper)', borderTop: '1.5px solid var(--line)',
+        padding: '14px 20px', display: 'flex', alignItems: 'center', gap: 12,
+        justifyContent: 'space-between', margin: '0 -20px', flexWrap: 'wrap'
+      }}>
+        <div>
+          <span style={{ fontFamily: "'Fraunces',serif", fontWeight: 600, fontSize: 21, color: 'var(--sage-900)' }}>
+            R$ {prof.valor_hora ?? '—'}
+          </span>
+          <span style={{ fontSize: 13, color: 'var(--muted)' }}>/hora</span>
+        </div>
+        <div style={{ display: 'flex', gap: 9 }}>
+          <button className="btn ghost" onClick={contratar} disabled={contratando}>Conversar</button>
+          <button className="btn" onClick={contratar} disabled={contratando}>
+            {contratando ? 'Enviando…' : 'Contratar'}
+          </button>
+        </div>
+      </div>
+    </main>
+  )
+}
+
+function Linha({ k, v }) {
+  return (
+    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '11px 0', borderBottom: '1px solid var(--line)', fontSize: 14 }}>
+      <span style={{ color: 'var(--muted)' }}>{k}</span>
+      <span style={{ fontWeight: 600, color: 'var(--sage-900)' }}>{v}</span>
+    </div>
+  )
+}
