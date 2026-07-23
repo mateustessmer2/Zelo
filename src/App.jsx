@@ -48,15 +48,3 @@ export default function App() {
     </>
   )
 }
-a />} />
-        <Route path="/profissional/:id" element={<PerfilProfissional />} />
-        <Route path="/entrar" element={<Login />} />
-        <Route path="/cadastrar" element={<Cadastro />} />
-        <Route path="/painel" element={<Protegida papel="cliente"><PainelCliente /></Protegida>} />
-        <Route path="/painel-profissional" element={<Protegida papel="profissional"><PainelProfissional /></Protegida>} />
-        <Route path="/admin" element={<Protegida papel="admin"><PainelAdmin /></Protegida>} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </>
-  )
-}
