@@ -7,6 +7,7 @@ import { useAuth } from '../hooks/useAuth'
 import FormAvaliacao from '../components/FormAvaliacao'
 import TrustScore from '../components/TrustScore'
 import Chat from '../components/Chat'
+import FeedbackPrivado from '../components/FeedbackPrivado'
 import EditarPerfil from '../components/EditarPerfil'
 import Agenda from '../components/Agenda'
 
@@ -198,6 +199,8 @@ export default function PainelProfissional() {
                 ficam visíveis só para outros clientes — e os seus comentários sobre clientes, só
                 para outras profissionais.</p>
             </div>
+
+            <FeedbackPrivado />
 
             <div className="card" style={{ marginTop: 14 }}>
               <h3>Clientes a avaliar</h3>
