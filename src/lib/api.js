@@ -250,33 +250,66 @@ export async function criarBooking({
 }
 
 export async function listarBookingsCliente(clienteId) {
-  const { data, error } = await supabase
+  const { data: bookings, error } = await supabase
     .from('bookings')
-    .select(`
-      *,
-      categorias ( nome, icone ),
-      bairros ( nome ),
-      profissionais ( id, valor_hora, perfis ( nome, foto_url ) )
-    `)
+    .select('*')
     .eq('cliente_id', clienteId)
     .order('data_servico', { ascending: false })
   if (error) throw error
-  return data
+  if (!bookings?.length) return []
+
+  return enriquecerBookings(bookings, 'profissional')
+}
+
+/**
+ * Preenche categoria, bairro e a outra parte de cada booking.
+ * Consultas separadas em vez de selects aninhados — mais previsível.
+ */
+async function enriquecerBookings(bookings, outraParte) {
+  const catIds = [...new Set(bookings.map((b) => b.categoria_id).filter(Boolean))]
+  const bairroIds = [...new Set(bookings.map((b) => b.bairro_id).filter(Boolean))]
+  const pessoaIds = [...new Set(
+    bookings.map((b) => outraParte === 'profissional' ? b.profissional_id : b.cliente_id).filter(Boolean)
+  )]
+
+  const [{ data: cats }, { data: bairs }, { data: pessoas }, { data: profs }] = await Promise.all([
+    catIds.length ? supabase.from('categorias').select('id, nome, icone').in('id', catIds) : Promise.resolve({ data: [] }),
+    bairroIds.length ? supabase.from('bairros').select('id, nome').in('id', bairroIds) : Promise.resolve({ data: [] }),
+    pessoaIds.length ? supabase.from('perfis').select('id, nome, foto_url').in('id', pessoaIds) : Promise.resolve({ data: [] }),
+    outraParte === 'profissional' && pessoaIds.length
+      ? supabase.from('profissionais').select('id, valor_hora').in('id', pessoaIds)
+      : Promise.resolve({ data: [] })
+  ])
+
+  const catPorId = Object.fromEntries((cats ?? []).map((c) => [c.id, c]))
+  const bairroPorId = Object.fromEntries((bairs ?? []).map((b) => [b.id, b]))
+  const pessoaPorId = Object.fromEntries((pessoas ?? []).map((p) => [p.id, p]))
+  const profPorId = Object.fromEntries((profs ?? []).map((p) => [p.id, p]))
+
+  return bookings.map((b) => {
+    const outroId = outraParte === 'profissional' ? b.profissional_id : b.cliente_id
+    return {
+      ...b,
+      categorias: catPorId[b.categoria_id] ?? null,
+      bairros: bairroPorId[b.bairro_id] ?? null,
+      perfis: pessoaPorId[outroId] ?? null,
+      profissionais: outraParte === 'profissional'
+        ? { ...(profPorId[outroId] ?? {}), id: outroId, perfis: pessoaPorId[outroId] ?? null }
+        : null
+    }
+  })
 }
 
 export async function listarBookingsProfissional(profissionalId) {
-  const { data, error } = await supabase
+  const { data: bookings, error } = await supabase
     .from('bookings')
-    .select(`
-      *,
-      categorias ( nome, icone ),
-      bairros ( nome ),
-      perfis!bookings_cliente_id_fkey ( id, nome, foto_url )
-    `)
+    .select('*')
     .eq('profissional_id', profissionalId)
     .order('data_servico', { ascending: false })
   if (error) throw error
-  return data
+  if (!bookings?.length) return []
+
+  return enriquecerBookings(bookings, 'cliente')
 }
 
 export async function atualizarStatusBooking(bookingId, status) {
@@ -394,16 +427,29 @@ export async function enviarDocumento({ profissionalId, tipo, arquivo }) {
 
 // ------------------------------------------------------------------ Admin
 export async function listarFilaVerificacao() {
-  const { data, error } = await supabase
+  const { data: verifs, error } = await supabase
     .from('verificacoes')
-    .select(`
-      id, tipo, status, documento_path, created_at,
-      profissionais ( id, perfis ( nome ) )
-    `)
+    .select('id, tipo, status, documento_path, created_at, profissional_id')
     .in('status', ['pendente', 'em_analise'])
     .order('created_at')
   if (error) throw error
-  return data
+  if (!verifs?.length) return []
+
+  // Nomes num segundo passo: o aninhamento duplo
+  // (verificacoes -> profissionais -> perfis) falha no PostgREST.
+  const ids = [...new Set(verifs.map((v) => v.profissional_id))]
+  const { data: perfisRows } = await supabase
+    .from('perfis')
+    .select('id, nome')
+    .in('id', ids)
+
+  const nomePorId = Object.fromEntries((perfisRows ?? []).map((p) => [p.id, p]))
+
+  return verifs.map((v) => ({
+    ...v,
+    // Mantém o formato que o componente já consome
+    profissionais: { id: v.profissional_id, perfis: nomePorId[v.profissional_id] ?? null }
+  }))
 }
 
 /**
