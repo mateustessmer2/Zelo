@@ -4,6 +4,7 @@ import { useAuth } from '../hooks/useAuth'
 import FormAvaliacao from '../components/FormAvaliacao'
 import TrustScore from '../components/TrustScore'
 import Chat from '../components/Chat'
+import FeedbackPrivado from '../components/FeedbackPrivado'
 
 const ABAS = [
   { id: 'contratacoes', label: 'Contratações' },
@@ -130,6 +131,8 @@ export default function PainelCliente() {
               <p><b>Você vê apenas seus números agregados.</b> Os comentários escritos por profissionais
                 são lidos só por outras profissionais — assim as duas partes avaliam com sinceridade.</p>
             </div>
+
+            <FeedbackPrivado />
 
             {passados.length === 0 && <div className="empty">Nenhum serviço concluído ainda.</div>}
 
