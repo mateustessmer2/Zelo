@@ -494,7 +494,12 @@ export async function listarVerificacoes(profissionalId) {
  * confere. Nenhum cliente tem acesso a este bucket.
  */
 export async function enviarDocumento({ profissionalId, tipo, arquivo }) {
-  const ext = arquivo.name.split('.').pop()
+  // Sanitiza a extensão: o nome do arquivo vem do usuário e não é confiável.
+  // "documento.pdf" -> "pdf"; nomes sem ponto ou com extensão estranha caem
+  // no genérico "bin". O caminho continua preso à pasta do próprio uid — a
+  // policy de storage confere a primeira pasta, não o nome do arquivo.
+  const bruta = (arquivo.name.includes('.') ? arquivo.name.split('.').pop() : '').toLowerCase()
+  const ext = /^[a-z0-9]{1,5}$/.test(bruta) ? bruta : 'bin'
   const path = `${profissionalId}/${tipo}-${Date.now()}.${ext}`
 
   const { error: upErr } = await supabase.storage
@@ -562,6 +567,22 @@ export async function urlAssinadaDocumento(path, segundos = 60) {
  * `visivel` vira true sozinha e o perfil entra na busca. Ninguém "publica"
  * manualmente — a regra está no banco.
  */
+/** Coluna de status em `profissionais` correspondente a cada tipo de verificação. */
+const COLUNA_STATUS = {
+  identidade: 'identidade_status',
+  antecedentes: 'antecedentes_status',
+  selfie: 'selfie_status'
+}
+
+/** Rótulo legível de cada tipo, usado na fila do admin e nos painéis. */
+export function rotuloVerificacao(tipo) {
+  return {
+    identidade: 'Documento de identidade',
+    antecedentes: 'Certidão de antecedentes',
+    selfie: 'Selfie (confere com o documento)'
+  }[tipo] ?? tipo
+}
+
 export async function decidirVerificacao({ verificacaoId, profissionalId, tipo, status, adminId, observacao }) {
   const { error: e1 } = await supabase
     .from('verificacoes')
@@ -574,7 +595,14 @@ export async function decidirVerificacao({ verificacaoId, profissionalId, tipo, 
     .eq('id', verificacaoId)
   if (e1) throw e1
 
-  const coluna = tipo === 'identidade' ? 'identidade_status' : 'antecedentes_status'
+  // O trigger `sincronizar_status_verificacao` (migração 09/10) já espelha
+  // o status em `profissionais`. Este update é redundância defensiva — e,
+  // sem a coluna certa no mapa acima, gravaria no campo errado: antes ele
+  // era um ternário que mandava QUALQUER tipo diferente de 'identidade'
+  // para `antecedentes_status`, o que faria a selfie aprovar antecedentes.
+  const coluna = COLUNA_STATUS[tipo]
+  if (!coluna) return
+
   const { error: e2 } = await supabase
     .from('profissionais')
     .update({ [coluna]: status, updated_at: new Date().toISOString() })

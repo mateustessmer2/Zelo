@@ -20,6 +20,8 @@ npm run dev
    - `supabase/03_seed.sql` — Pelotas, bairros e categorias
    - `supabase/04_storage.sql` — buckets e políticas de documentos
    - `supabase/05_correcoes.sql` — telefone protegido + liberação simultânea
+   - `supabase/06_grants.sql` — grants e policies de INSERT (sem este, o app
+     conecta mas nada funciona)
 3. Em **Settings → API**, copie a URL e a anon key para o `.env.local`
 4. Em **Database → Replication**, ative Realtime na tabela `mensagens` (chat ao vivo)
 
@@ -71,6 +73,28 @@ autonomia da profissional. Os campos para split futuro já existem em `bookings`
 
 **Multi-cidade desde o dia zero.** Cidades, bairros e categorias são dados.
 Expandir para Rio Grande ou Porto Alegre é mudar `ativa` para `true`.
+
+## Por que 06_grants.sql é obrigatório
+
+O projeto Supabase deve ser criado com **"Automatically expose new tables"
+desligado** — é a recomendação de segurança do próprio Supabase e evita que
+tabelas sensíveis fiquem expostas por padrão. A consequência é que cada tabela
+precisa de `grant` explícito.
+
+Vale entender a diferença: o **GRANT** decide se a pessoa pode olhar a tabela;
+o **RLS** decide quais linhas ela vê. Faltando o grant, o RLS nem chega a ser
+avaliado — e o erro que aparece é `permission denied`, não "acesso negado a
+esta linha".
+
+O `06_grants.sql` também corrige duas coisas do desenho original:
+
+- **Policies de INSERT ausentes.** O `02_rls.sql` cobriu quem lê os dados e
+  esqueceu quem os cria. Cadastro, upload de documento e contratação são todos
+  INSERT feitos pela própria pessoa.
+- **`auth_role()` sem `security definer`.** A função lê `perfis`, que tem RLS.
+  Chamada de dentro de uma policy, a leitura interna era bloqueada e ela
+  devolvia vazio — fazendo o admin deixar de ser reconhecido como admin em
+  todas as regras que dependem dela.
 
 ## Resolvido em 05_correcoes.sql
 

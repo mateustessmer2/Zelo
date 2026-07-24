@@ -61,6 +61,7 @@ export default function PainelProfissional() {
 
   const idOk = verificacoes.find((v) => v.tipo === 'identidade')?.status === 'aprovado'
   const antOk = verificacoes.find((v) => v.tipo === 'antecedentes')?.status === 'aprovado'
+  const selfieOk = verificacoes.find((v) => v.tipo === 'selfie')?.status === 'aprovado'
   const noAr = idOk && antOk
 
   return (
@@ -287,13 +288,22 @@ function Verificacao({ perfilId, verificacoes, idOk, antOk, noAr, onEnviado }) {
           enviando={enviando === 'antecedentes'}
           onArquivo={(f) => subir('antecedentes', f)}
         />
+        <Doc
+          titulo="Selfie"
+          sub="Foto do seu rosto, sem óculos escuros ou boné · confere com o documento"
+          status={statusDe('selfie')}
+          enviando={enviando === 'selfie'}
+          onArquivo={(f) => subir('selfie', f)}
+          selfie
+        />
 
         <div className="note neutral">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3a5244" strokeWidth="2">
             <rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" />
           </svg>
-          <p><b>Seus documentos ficam privados.</b> Nenhum cliente tem acesso a eles. O que aparece
-            no seu perfil é apenas um selo de "verificada" — nunca a certidão ou o documento.</p>
+          <p><b>Seus documentos e a selfie ficam privados.</b> Nenhum cliente tem acesso a eles —
+            a selfie serve só para conferirmos que o documento é seu. O que aparece no seu perfil
+            é apenas um selo de "verificada".</p>
         </div>
       </div>
 
@@ -305,16 +315,28 @@ function Verificacao({ perfilId, verificacoes, idOk, antOk, noAr, onEnviado }) {
         </svg>
         <p style={noAr ? { color: 'var(--green)' } : {}}>
           {noAr
-            ? <><b>Perfil no ar.</b> Identidade e antecedentes aprovados — você já aparece na busca dos clientes.</>
-            : <><b>Perfil ainda não visível.</b> Assim que identidade {idOk ? '(aprovada) ' : ''}
-              e antecedentes {antOk ? '(aprovados) ' : ''}forem aprovados, seu perfil entra no ar automaticamente.</>}
+            ? <><b>Perfil no ar.</b> Identidade, antecedentes e selfie aprovados — você já aparece na busca dos clientes.</>
+            : <><b>Perfil ainda não visível.</b> Faltam: {[
+                !idOk && 'identidade',
+                !antOk && 'antecedentes',
+                !selfieOk && 'selfie'
+              ].filter(Boolean).join(', ')}. Assim que os três forem aprovados, seu perfil entra
+              no ar automaticamente.</>}
         </p>
       </div>
     </>
   )
 }
 
-function Doc({ titulo, sub, status, enviando, onArquivo }) {
+/**
+ * Cartão de envio de um documento de verificação.
+ *
+ * Em `selfie`, aceita só imagem e usa `capture="user"`, que abre a câmera
+ * frontal direto no celular. É conveniência, não trava: a pessoa ainda pode
+ * escolher da galeria. Prova de vida de verdade só com serviço externo
+ * (Idwall, Unico) — o que o schema já prevê no campo `metodo`.
+ */
+function Doc({ titulo, sub, status, enviando, onArquivo, selfie }) {
   const cor = status === 'aprovado' ? 's-conf' : status === 'rejeitado' ? 's-canc' : 's-pend'
   const rotulo = status === 'aprovado' ? 'Aprovado' : status === 'em_analise' ? 'Em análise' : status === 'rejeitado' ? 'Reenviar' : 'Pendente'
 
@@ -328,7 +350,8 @@ function Doc({ titulo, sub, status, enviando, onArquivo }) {
       {status !== 'aprovado' && (
         <input
           type="file"
-          accept="image/*,application/pdf"
+          accept={selfie ? 'image/*' : 'image/*,application/pdf'}
+          {...(selfie ? { capture: 'user' } : {})}
           disabled={enviando}
           onChange={(e) => onArquivo(e.target.files?.[0])}
           style={{ fontSize: 13.5 }}

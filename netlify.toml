@@ -7,3 +7,26 @@
   from = "/*"
   to = "/index.html"
   status = 200
+
+# ----------------------------------------------------------------------------
+# Cabeçalhos de segurança.
+# A CSP libera exatamente o que o app usa: Supabase (fetch + websocket do
+# Realtime) e Google Fonts. `style-src 'unsafe-inline'` é exigido pelos
+# estilos inline do React. Se algo parar de carregar após uma mudança
+# futura, este bloco é o primeiro lugar a olhar.
+# ----------------------------------------------------------------------------
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=()"
+    Content-Security-Policy = "default-src 'self'; connect-src 'self' https://*.supabase.co wss://*.supabase.co; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: https:; script-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+
+# Assets do Vite têm hash no nome: cache agressivo é seguro —
+# todo deploy gera nomes novos.
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"

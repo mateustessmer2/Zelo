@@ -8,7 +8,7 @@ import { listarCidadesAtivas, listarBairros } from '../lib/api'
  * inclusive qual lado das avaliações ela consegue ler (ver RLS).
  *
  * A profissional entra com verificação pendente e NÃO aparece na busca até
- * identidade e antecedentes serem aprovados. Isso é dito na tela, não
+ * identidade, antecedentes e selfie serem aprovados. Isso é dito na tela, não
  * escondido: a barreira é o produto, não um obstáculo.
  */
 export default function Cadastro() {
@@ -108,7 +108,7 @@ export default function Cadastro() {
             </svg>
             <p>
               <b>Próximo passo: verificação.</b> Depois do cadastro você envia documento de
-              identidade e certidão de antecedentes. Seu perfil entra na busca automaticamente
+              identidade, certidão de antecedentes e uma selfie. Seu perfil entra na busca automaticamente
               assim que os dois forem aprovados. Seus documentos ficam privados — clientes veem
               apenas o selo de verificada.
             </p>

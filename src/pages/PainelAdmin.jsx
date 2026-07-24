@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { listarFilaVerificacao, urlAssinadaDocumento, decidirVerificacao } from '../lib/api'
+import { listarFilaVerificacao, urlAssinadaDocumento, decidirVerificacao, rotuloVerificacao } from '../lib/api'
 import { useAuth } from '../hooks/useAuth'
 
 /**
@@ -71,7 +71,7 @@ export default function PainelAdmin() {
                 {v.profissionais?.perfis?.nome}
               </div>
               <div style={{ fontSize: 13, color: 'var(--muted)' }}>
-                {v.tipo === 'identidade' ? 'Documento de identidade' : 'Certidão de antecedentes'}
+                {rotuloVerificacao(v.tipo)}
                 {' · enviado em '}{new Date(v.created_at).toLocaleDateString('pt-BR')}
               </div>
             </div>
