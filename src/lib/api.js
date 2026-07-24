@@ -52,44 +52,114 @@ export async function listarCategoriasAtivas() {
  * Deixamos o filtro explícito mesmo assim, por clareza de intenção.
  */
 export async function buscarProfissionais({ categoriaId, bairroId, limite = 6 }) {
+  // Passo 1: filtra os ids pelas tabelas de junção, separadamente.
+  let ids = null
+
+  if (categoriaId) {
+    const { data, error } = await supabase
+      .from('profissional_categorias')
+      .select('profissional_id')
+      .eq('categoria_id', categoriaId)
+    if (error) throw error
+    ids = (data ?? []).map((r) => r.profissional_id)
+    if (!ids.length) return []
+  }
+
+  if (bairroId) {
+    const { data, error } = await supabase
+      .from('profissional_bairros')
+      .select('profissional_id')
+      .eq('bairro_id', bairroId)
+    if (error) throw error
+    const doBairro = (data ?? []).map((r) => r.profissional_id)
+    ids = ids ? ids.filter((id) => doBairro.includes(id)) : doBairro
+    if (!ids.length) return []
+  }
+
+  // Passo 2: busca as profissionais visíveis entre esses ids.
+  // O filtro por `visivel` é redundante (a policy já esconde), mas deixa
+  // a intenção explícita.
   let query = supabase
     .from('profissionais')
-    .select(`
-      id,
-      descricao,
-      idade,
-      valor_hora,
-      valor_diaria,
-      tempo_resposta_min,
-      visivel,
-      perfis!inner ( nome, foto_url ),
-      profissional_categorias!inner ( categoria_id ),
-      profissional_bairros!inner ( bairro_id, bairros ( nome ) )
-    `)
+    .select('id, descricao, idade, valor_hora, valor_diaria, tempo_resposta_min, visivel')
     .eq('visivel', true)
     .limit(limite)
 
-  if (categoriaId) query = query.eq('profissional_categorias.categoria_id', categoriaId)
-  if (bairroId) query = query.eq('profissional_bairros.bairro_id', bairroId)
+  if (ids) query = query.in('id', ids)
 
-  const { data, error } = await query
+  const { data: profs, error } = await query
   if (error) throw error
-  return data
+  if (!profs?.length) return []
+
+  // Passo 3: nomes e bairros num segundo passo.
+  const profIds = profs.map((p) => p.id)
+  const [{ data: perfisRows }, { data: vinculos }] = await Promise.all([
+    supabase.from('perfis').select('id, nome, foto_url').in('id', profIds),
+    supabase.from('profissional_bairros').select('profissional_id, bairro_id').in('profissional_id', profIds)
+  ])
+
+  const bairroIds = [...new Set((vinculos ?? []).map((v) => v.bairro_id))]
+  const { data: bairrosRows } = bairroIds.length
+    ? await supabase.from('bairros').select('id, nome').in('id', bairroIds)
+    : { data: [] }
+
+  const nomePorId = Object.fromEntries((perfisRows ?? []).map((p) => [p.id, p]))
+  const bairroPorId = Object.fromEntries((bairrosRows ?? []).map((b) => [b.id, b]))
+
+  return profs.map((p) => ({
+    ...p,
+    perfis: nomePorId[p.id] ?? null,
+    profissional_bairros: (vinculos ?? [])
+      .filter((v) => v.profissional_id === p.id)
+      .map((v) => ({ bairros: bairroPorId[v.bairro_id] ?? null }))
+  }))
 }
 
+/**
+ * Perfil completo da profissional.
+ *
+ * Consultas separadas em vez de um select aninhado: os joins duplos via
+ * tabela de junção com chave composta (profissional_categorias -> categorias)
+ * são frágeis no PostgREST e falhavam silenciosamente. Três queries simples
+ * são mais previsíveis — e cada uma pode falhar sem derrubar as outras.
+ */
 export async function obterProfissional(id) {
-  const { data, error } = await supabase
+  const { data: prof, error } = await supabase
     .from('profissionais')
-    .select(`
-      *,
-      perfis ( nome, foto_url, cidade_id, bairro_id ),
-      profissional_categorias ( categorias ( nome, icone ) ),
-      profissional_bairros ( bairros ( nome ) )
-    `)
+    .select('*')
     .eq('id', id)
-    .single()
+    .maybeSingle()
   if (error) throw error
-  return data
+  if (!prof) return null
+
+  const [{ data: perfilRow }, { data: cats }, { data: bairs }] = await Promise.all([
+    supabase.from('perfis').select('nome, foto_url, cidade_id, bairro_id').eq('id', id).maybeSingle(),
+    supabase.from('profissional_categorias').select('categoria_id').eq('profissional_id', id),
+    supabase.from('profissional_bairros').select('bairro_id').eq('profissional_id', id)
+  ])
+
+  // Resolve os nomes num segundo passo, só se houver vínculos
+  const categoriaIds = (cats ?? []).map((c) => c.categoria_id)
+  const bairroIds = (bairs ?? []).map((b) => b.bairro_id)
+
+  const [{ data: categoriasNomes }, { data: bairrosNomes }] = await Promise.all([
+    categoriaIds.length
+      ? supabase.from('categorias').select('id, nome, icone').in('id', categoriaIds)
+      : Promise.resolve({ data: [] }),
+    bairroIds.length
+      ? supabase.from('bairros').select('id, nome').in('id', bairroIds)
+      : Promise.resolve({ data: [] })
+  ])
+
+  return {
+    ...prof,
+    perfis: perfilRow ?? null,
+    categorias: categoriasNomes ?? [],
+    bairros: bairrosNomes ?? [],
+    // Mantém o formato antigo para quem já consome estas chaves
+    profissional_categorias: (categoriasNomes ?? []).map((c) => ({ categorias: c })),
+    profissional_bairros: (bairrosNomes ?? []).map((b) => ({ bairros: b }))
+  }
 }
 
 // ------------------------------------------------------------- Trust scores
