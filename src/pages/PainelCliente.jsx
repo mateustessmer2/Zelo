@@ -1,5 +1,8 @@
 import { useEffect, useState } from 'react'
-import { listarBookingsCliente, atualizarStatusBooking, obterTrustScore } from '../lib/api'
+import {
+  listarBookingsCliente, atualizarStatusBooking, obterTrustScore,
+  listarBookingsAvaliadosPorMim, rotuloTurno
+} from '../lib/api'
 import { useAuth } from '../hooks/useAuth'
 import FormAvaliacao from '../components/FormAvaliacao'
 import TrustScore from '../components/TrustScore'
@@ -18,11 +21,13 @@ export default function PainelCliente() {
   const [score, setScore] = useState(null)
   const [avaliando, setAvaliando] = useState(null)
   const [chatAberto, setChatAberto] = useState(null)
+  const [jaAvaliados, setJaAvaliados] = useState(new Set())
 
   useEffect(() => {
     if (!perfil?.id) return
     carregar()
     obterTrustScore(perfil.id, 'prof_avalia_cliente').then(setScore).catch(() => {})
+    listarBookingsAvaliadosPorMim(perfil.id).then(setJaAvaliados).catch(() => {})
   }, [perfil?.id])
 
   async function carregar() {
@@ -77,7 +82,7 @@ export default function PainelCliente() {
                       </span>
                     </div>
                     <div style={{ fontSize: 13.5, color: 'var(--muted)' }}>
-                      {b.categorias?.nome} · {b.bairros?.nome} · {b.turno}
+                      {b.categorias?.nome} · {b.bairros?.nome} · {rotuloTurno(b.turno)}
                     </div>
                     <div style={{ fontSize: 13.5, color: 'var(--sage-700)', fontWeight: 600, marginTop: 5 }}>
                       {new Date(b.data_servico + 'T00:00').toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}
@@ -147,7 +152,13 @@ export default function PainelCliente() {
                     </div>
                   </div>
                   {b.status === 'concluido' && (
-                    <button className="btn sm" onClick={() => setAvaliando(b)}>Avaliar</button>
+                    jaAvaliados.has(b.id) ? (
+                      <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--green)' }}>
+                        ✓ Você já avaliou
+                      </span>
+                    ) : (
+                      <button className="btn sm" onClick={() => setAvaliando(b)}>Avaliar</button>
+                    )
                   )}
                 </div>
 
@@ -157,7 +168,11 @@ export default function PainelCliente() {
                       bookingId={b.id}
                       alvoId={b.profissional_id}
                       lado="cliente_avalia_prof"
-                      onPronto={() => { setAvaliando(null); carregar() }}
+                      onPronto={() => {
+                        setAvaliando(null)
+                        setJaAvaliados((s) => new Set(s).add(b.id))
+                        carregar()
+                      }}
                     />
                   </div>
                 )}

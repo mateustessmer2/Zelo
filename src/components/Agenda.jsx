@@ -13,7 +13,8 @@ const DIAS = [
 const TURNOS = [
   { id: 'manha', label: 'Manhã' },
   { id: 'tarde', label: 'Tarde' },
-  { id: 'noite', label: 'Noite' }
+  { id: 'noite', label: 'Noite' },
+  { id: 'integral', label: 'Integral (manhã+tarde)' }
 ]
 
 /**

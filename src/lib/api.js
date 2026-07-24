@@ -51,7 +51,25 @@ export async function listarCategoriasAtivas() {
  * já esconde quem não passou pela verificação de identidade + antecedentes.
  * Deixamos o filtro explícito mesmo assim, por clareza de intenção.
  */
-export async function buscarProfissionais({ categoriaId, bairroId, limite = 6 }) {
+/**
+ * Compatibilidade entre o turno pedido e o declarado na agenda.
+ *
+ * Quem atende 'integral' (manhã + tarde) aparece também em buscas por
+ * 'manha' ou 'tarde' — quem atende o turno integral obviamente pode
+ * pegar meio período. O contrário não vale: quem só atende de manhã não
+ * serve para quem precisa do dia inteiro.
+ *
+ * Resolver isto aqui, e não duplicando linhas em `disponibilidade`, mantém
+ * a agenda legível: a profissional marcou "integral", e é isso que ela vê.
+ */
+function turnosCompativeis(turnoPedido) {
+  if (!turnoPedido) return null
+  if (turnoPedido === 'integral') return ['integral']
+  if (turnoPedido === 'manha' || turnoPedido === 'tarde') return [turnoPedido, 'integral']
+  return [turnoPedido]
+}
+
+export async function buscarProfissionais({ categoriaId, bairroId, turno, limite = 6 }) {
   // Passo 1: filtra os ids pelas tabelas de junção, separadamente.
   let ids = null
 
@@ -74,6 +92,36 @@ export async function buscarProfissionais({ categoriaId, bairroId, limite = 6 })
     const doBairro = (data ?? []).map((r) => r.profissional_id)
     ids = ids ? ids.filter((id) => doBairro.includes(id)) : doBairro
     if (!ids.length) return []
+  }
+
+  // Filtro por turno: só restringe quem já declarou agenda. Profissional
+  // sem disponibilidade cadastrada continua aparecendo — no começo quase
+  // ninguém preenche agenda, e escondê-las esvaziaria a busca.
+  const compativeis = turnosCompativeis(turno)
+  if (compativeis) {
+    const { data, error } = await supabase
+      .from('disponibilidade')
+      .select('profissional_id, turno')
+    if (error) throw error
+
+    const comAgenda = new Set((data ?? []).map((d) => d.profissional_id))
+    const atendem = new Set(
+      (data ?? []).filter((d) => compativeis.includes(d.turno)).map((d) => d.profissional_id)
+    )
+
+    const passa = (id) => !comAgenda.has(id) || atendem.has(id)
+    ids = ids ? ids.filter(passa) : null
+
+    // Sem filtro anterior, precisamos excluir só quem tem agenda incompatível
+    if (!ids) {
+      const incompativeis = [...comAgenda].filter((id) => !atendem.has(id))
+      if (incompativeis.length) {
+        const { data: todos } = await supabase
+          .from('profissionais').select('id').eq('visivel', true)
+        ids = (todos ?? []).map((p) => p.id).filter((id) => !incompativeis.includes(id))
+      }
+    }
+    if (ids && !ids.length) return []
   }
 
   // Passo 2: busca as profissionais visíveis entre esses ids.
@@ -208,6 +256,26 @@ export async function listarAvaliacoes(alvoId, lado) {
  * Cria uma avaliação. A policy de INSERT exige booking concluído e
  * participação real — não dá pra avaliar quem você não contratou.
  */
+/**
+ * Ids dos bookings que EU já avaliei.
+ *
+ * Serve para o app não oferecer "Avaliar" duas vezes: não existe policy de
+ * UPDATE em `avaliacoes` — avaliação enviada não se edita, e é assim que
+ * deve ser numa reputação confiável. Sem esta checagem, a pessoa clicaria,
+ * escreveria e receberia um erro genérico.
+ *
+ * A policy `avaliacoes_select_segmentado` sempre entrega ao autor o que ele
+ * mesmo escreveu, então esta consulta funciona antes da publicação.
+ */
+export async function listarBookingsAvaliadosPorMim(autorId) {
+  const { data, error } = await supabase
+    .from('avaliacoes')
+    .select('booking_id')
+    .eq('autor_id', autorId)
+  if (error) throw error
+  return new Set((data ?? []).map((a) => a.booking_id))
+}
+
 export async function criarAvaliacao({ bookingId, autorId, alvoId, lado, nota, comentario, comentarioPrivado }) {
   const { data, error } = await supabase
     .from('avaliacoes')
@@ -241,6 +309,12 @@ export async function listarFeedbackPrivado() {
     .order('created_at', { ascending: false })
   if (error) throw error
   return data ?? []
+}
+
+
+/** Rótulo legível do turno. 'integral' precisa virar texto, não código. */
+export function rotuloTurno(turno) {
+  return { manha: 'manhã', tarde: 'tarde', noite: 'noite', integral: 'turno integral (manhã+tarde)' }[turno] ?? turno ?? ''
 }
 
 // ------------------------------------------------------------------ Bookings

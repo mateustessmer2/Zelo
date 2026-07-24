@@ -39,7 +39,9 @@ export default function Busca() {
     setBuscando(true)
     setErro(null)
     try {
-      const rs = await buscarProfissionais({ categoriaId, bairroId: bairroId || null })
+      const rs = await buscarProfissionais({
+        categoriaId, bairroId: bairroId || null, turno: turno || null
+      })
       setResultados(rs)
     } catch {
       setErro('Não foi possível buscar agora. Tente novamente.')
@@ -56,7 +58,9 @@ export default function Busca() {
         </button>
         <h2>As melhores opções pra você</h2>
         <p className="lead" style={{ marginBottom: 22 }}>
-          Poucas escolhas selecionadas — não uma lista infinita.
+          {turno === 'integral'
+            ? 'Disponíveis para turno integral — poucas escolhas selecionadas.'
+            : 'Poucas escolhas selecionadas — não uma lista infinita.'}
         </p>
 
         {resultados.length === 0 ? (
@@ -91,7 +95,11 @@ export default function Busca() {
                     <span style={{ fontSize: 12, color: 'var(--muted)' }}>/hora</span>
                   </div>
                 )}
-                <Link to={`/profissional/${p.id}`} className="btn dark sm" style={{ marginTop: 8 }}>Ver perfil</Link>
+                <Link
+                  to={`/profissional/${p.id}?bairro=${bairroId}&data=${data}&turno=${turno}`}
+                  className="btn dark sm"
+                  style={{ marginTop: 8 }}
+                >Ver perfil</Link>
               </div>
             </div>
           ))
@@ -126,13 +134,18 @@ export default function Busca() {
       <div className="field">
         <label>Qual horário?</label>
         <div className="chips">
-          {['Manhã', 'Tarde', 'Noite'].map((t) => (
+          {[
+            { id: 'manha', label: 'Manhã' },
+            { id: 'tarde', label: 'Tarde' },
+            { id: 'noite', label: 'Noite' },
+            { id: 'integral', label: 'Integral (manhã+tarde)' }
+          ].map((t) => (
             <button
-              key={t}
+              key={t.id}
               type="button"
-              className={`chip ${turno === t ? 'on' : ''}`}
-              onClick={() => setTurno(turno === t ? '' : t)}
-            >{t}</button>
+              className={`chip ${turno === t.id ? 'on' : ''}`}
+              onClick={() => setTurno(turno === t.id ? '' : t.id)}
+            >{t.label}</button>
           ))}
         </div>
       </div>

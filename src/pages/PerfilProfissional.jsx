@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { obterProfissional, obterTrustScore, criarBooking } from '../lib/api'
 import { useAuth } from '../hooks/useAuth'
 import TrustScore from '../components/TrustScore'
@@ -8,7 +8,13 @@ import Avaliacoes from '../components/Avaliacoes'
 export default function PerfilProfissional() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const [params] = useSearchParams()
   const { sessao, perfil } = useAuth()
+
+  // Herda o que a pessoa já respondeu na busca, em vez de perguntar de novo
+  const bairroBusca = params.get('bairro') || null
+  const dataBusca = params.get('data') || null
+  const turnoBusca = params.get('turno') || 'manha'
 
   const [prof, setProf] = useState(null)
   const [score, setScore] = useState(null)
@@ -28,15 +34,20 @@ export default function PerfilProfissional() {
     setContratando(true)
     try {
       const categoriaId = prof.profissional_categorias?.[0]?.categorias?.id
+      // Turno integral é cobrado por diária; meio período, por hora.
+      const valor = turnoBusca === 'integral'
+        ? (prof.valor_diaria ?? prof.valor_hora)
+        : (prof.valor_hora ?? prof.valor_diaria)
+
       const booking = await criarBooking({
         clienteId: perfil.id,
         profissionalId: prof.id,
         categoriaId,
-        bairroId: perfil.bairro_id,
-        dataServico: new Date().toISOString().slice(0, 10),
-        turno: 'manha',
+        bairroId: bairroBusca ?? perfil.bairro_id,
+        dataServico: dataBusca ?? new Date().toISOString().slice(0, 10),
+        turno: turnoBusca,
         observacao: '',
-        valorCombinado: prof.valor_hora
+        valorCombinado: valor
       })
       navigate(`/painel?booking=${booking.id}`)
     } catch {
@@ -106,9 +117,13 @@ export default function PerfilProfissional() {
       }}>
         <div>
           <span style={{ fontFamily: "'Fraunces',serif", fontWeight: 600, fontSize: 21, color: 'var(--sage-900)' }}>
-            R$ {prof.valor_hora ?? '—'}
+            R$ {turnoBusca === 'integral'
+              ? (prof.valor_diaria ?? prof.valor_hora ?? '—')
+              : (prof.valor_hora ?? '—')}
           </span>
-          <span style={{ fontSize: 13, color: 'var(--muted)' }}>/hora</span>
+          <span style={{ fontSize: 13, color: 'var(--muted)' }}>
+            {turnoBusca === 'integral' ? '/turno integral' : '/hora'}
+          </span>
         </div>
         <div style={{ display: 'flex', gap: 9 }}>
           <button className="btn ghost" onClick={contratar} disabled={contratando}>Conversar</button>

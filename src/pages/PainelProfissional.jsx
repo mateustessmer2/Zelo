@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import {
   listarBookingsProfissional, atualizarStatusBooking,
-  obterTrustScore, listarVerificacoes, enviarDocumento
+  obterTrustScore, listarVerificacoes, enviarDocumento,
+  listarBookingsAvaliadosPorMim, rotuloTurno
 } from '../lib/api'
 import { useAuth } from '../hooks/useAuth'
 import FormAvaliacao from '../components/FormAvaliacao'
@@ -28,12 +29,14 @@ export default function PainelProfissional() {
   const [verificacoes, setVerificacoes] = useState([])
   const [avaliando, setAvaliando] = useState(null)
   const [chatAberto, setChatAberto] = useState(null)
+  const [jaAvaliados, setJaAvaliados] = useState(new Set())
 
   useEffect(() => {
     if (!perfil?.id) return
     carregar()
     obterTrustScore(perfil.id, 'cliente_avalia_prof').then(setScore).catch(() => {})
     listarVerificacoes(perfil.id).then(setVerificacoes).catch(() => {})
+    listarBookingsAvaliadosPorMim(perfil.id).then(setJaAvaliados).catch(() => {})
   }, [perfil?.id])
 
   async function carregar() {
@@ -105,7 +108,7 @@ export default function PainelProfissional() {
                     </div>
                     <div style={{ fontSize: 13.5, color: 'var(--sage-700)', fontWeight: 600, marginTop: 5 }}>
                       {new Date(b.data_servico + 'T00:00').toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}
-                      {' · '}{b.turno} · {b.bairros?.nome}
+                      {' · '}{rotuloTurno(b.turno)} · {b.bairros?.nome}
                     </div>
                     {b.observacao && (
                       <div style={{ fontSize: 13.5, color: 'var(--muted)', marginTop: 7, fontStyle: 'italic' }}>
@@ -211,14 +214,23 @@ export default function PainelProfissional() {
                     <span style={{ fontSize: 14 }}>
                       {b.perfis?.nome} · {new Date(b.data_servico + 'T00:00').toLocaleDateString('pt-BR')}
                     </span>
-                    <button className="btn ghost sm" onClick={() => setAvaliando(b)}>Avaliar</button>
+                    {jaAvaliados.has(b.id) ? (
+                      <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--green)' }}>
+                        ✓ Você já avaliou
+                      </span>
+                    ) : (
+                      <button className="btn ghost sm" onClick={() => setAvaliando(b)}>Avaliar</button>
+                    )}
                   </div>
                   {avaliando?.id === b.id && (
                     <FormAvaliacao
                       bookingId={b.id}
                       alvoId={b.cliente_id}
                       lado="prof_avalia_cliente"
-                      onPronto={() => setAvaliando(null)}
+                      onPronto={() => {
+                        setAvaliando(null)
+                        setJaAvaliados((s) => new Set(s).add(b.id))
+                      }}
                     />
                   )}
                 </div>
