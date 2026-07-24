@@ -40,30 +40,48 @@ export default function EditarPerfil({ onSalvo }) {
     if (!perfil?.id) return
     let ativo = true
 
-    Promise.all([
-      obterProfissional(perfil.id),
-      obterCategoriasBairros(perfil.id),
-      listarCategoriasAtivas(),
-      listarCidadesAtivas(),
-      obterContato(perfil.id).catch(() => null)
-    ])
-      .then(async ([prof, sel, cats, cidades, contato]) => {
-        if (!ativo) return
-        setNome(prof.perfis?.nome ?? '')
+    // Cada chamada é independente: se uma falhar, as outras ainda preenchem.
+    // Antes isto era um Promise.all — e a rejeição de qualquer uma deixava
+    // as listas de categorias e bairros vazias, sem erro visível.
+    async function carregar() {
+      const [prof, sel, cats, cidades, contato] = await Promise.all([
+        obterProfissional(perfil.id).catch(() => null),
+        obterCategoriasBairros(perfil.id).catch(() => ({ categoriaIds: [], bairroIds: [] })),
+        listarCategoriasAtivas().catch(() => []),
+        listarCidadesAtivas().catch(() => []),
+        obterContato(perfil.id).catch(() => null)
+      ])
+      if (!ativo) return
+
+      if (prof) {
+        setNome(prof.perfis?.nome ?? perfil.nome ?? '')
         setDescricao(prof.descricao ?? '')
         setIdade(prof.idade ?? '')
         setExperiencia(prof.experiencia ?? '')
         setEspecialidades((prof.especialidades ?? []).join(', '))
         setValorHora(prof.valor_hora ?? '')
         setValorDiaria(prof.valor_diaria ?? '')
-        setTelefone(contato?.telefone ?? '')
-        setCatSel(sel.categoriaIds)
-        setBairroSel(sel.bairroIds)
-        setCategorias(cats)
-        if (cidades.length) setBairros(await listarBairros(cidades[0].id))
-      })
-      .catch(() => ativo && setErro('Não foi possível carregar seu perfil.'))
-      .finally(() => ativo && setCarregando(false))
+      } else {
+        setNome(perfil.nome ?? '')
+      }
+
+      setTelefone(contato?.telefone ?? '')
+      setCatSel(sel.categoriaIds)
+      setBairroSel(sel.bairroIds)
+      setCategorias(cats)
+
+      if (cidades.length) {
+        const bs = await listarBairros(cidades[0].id).catch(() => [])
+        if (ativo) setBairros(bs)
+      }
+      if (ativo) setCarregando(false)
+    }
+
+    carregar().catch(() => {
+      if (!ativo) return
+      setErro('Não foi possível carregar seu perfil.')
+      setCarregando(false)
+    })
 
     return () => { ativo = false }
   }, [perfil?.id])
