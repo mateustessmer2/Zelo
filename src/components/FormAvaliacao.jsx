@@ -15,6 +15,7 @@ export default function FormAvaliacao({ bookingId, alvoId, lado, onPronto }) {
   const { perfil } = useAuth()
   const [nota, setNota] = useState(0)
   const [comentario, setComentario] = useState('')
+  const [comentarioPrivado, setComentarioPrivado] = useState('')
   const [enviando, setEnviando] = useState(false)
   const [erro, setErro] = useState(null)
   const [feito, setFeito] = useState(false)
@@ -24,7 +25,9 @@ export default function FormAvaliacao({ bookingId, alvoId, lado, onPronto }) {
     setEnviando(true)
     setErro(null)
     try {
-      await criarAvaliacao({ bookingId, autorId: perfil.id, alvoId, lado, nota, comentario })
+      await criarAvaliacao({
+        bookingId, autorId: perfil.id, alvoId, lado, nota, comentario, comentarioPrivado
+      })
       setFeito(true)
       onPronto?.()
     } catch {
@@ -74,7 +77,11 @@ export default function FormAvaliacao({ bookingId, alvoId, lado, onPronto }) {
       </div>
 
       <div className="field">
+        <label htmlFor="publico">
+          Avaliação pública
+        </label>
         <textarea
+          id="publico"
           rows="3"
           value={comentario}
           onChange={(e) => setComentario(e.target.value)}
@@ -82,6 +89,30 @@ export default function FormAvaliacao({ bookingId, alvoId, lado, onPronto }) {
             ? 'Conte como foi — pontualidade, capricho, comunicação…'
             : 'Ambiente respeitoso? Pagamento em dia? Combinado cumprido?'}
         />
+        <p style={{ fontSize: 12, color: 'var(--muted)', marginTop: 6 }}>
+          {ehCliente
+            ? 'Aparece de forma anônima para outros clientes.'
+            : 'Aparece de forma anônima para outras profissionais.'}
+        </p>
+      </div>
+
+      <div className="field">
+        <label htmlFor="privado">
+          Mensagem direta <span style={{ color: 'var(--muted)', fontWeight: 400 }}>(opcional)</span>
+        </label>
+        <textarea
+          id="privado"
+          rows="3"
+          value={comentarioPrivado}
+          onChange={(e) => setComentarioPrivado(e.target.value)}
+          placeholder={ehCliente
+            ? 'Algo que você quer dizer só para ela — um elogio, um detalhe para a próxima vez…'
+            : 'Algo que você quer dizer só para o cliente…'}
+        />
+        <p style={{ fontSize: 12, color: 'var(--muted)', marginTop: 6 }}>
+          Só {ehCliente ? 'ela' : 'ele'} lê, e apenas depois que os dois lados avaliarem.
+          Não aparece no perfil nem conta para a nota.
+        </p>
       </div>
 
       <button className="btn full" onClick={enviar} disabled={!nota || enviando}>
@@ -92,9 +123,9 @@ export default function FormAvaliacao({ bookingId, alvoId, lado, onPronto }) {
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3a5244" strokeWidth="2">
           <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" /><circle cx="12" cy="12" r="3" />
         </svg>
-        <p><b>Quem vê isso:</b> {ehCliente
-          ? 'apenas outros clientes, de forma anônima. A profissional vê só a nota média — nunca o seu comentário.'
-          : 'apenas outras profissionais, antes de aceitarem um pedido deste cliente. Ele vê só a nota média.'}</p>
+        <p><b>Nada aparece até os dois avaliarem.</b> {ehCliente
+          ? 'A profissional vê só a sua nota média — nunca o comentário público, que é lido apenas por outros clientes.'
+          : 'O cliente vê só a nota média — o comentário público é lido apenas por outras profissionais.'}</p>
       </div>
     </div>
   )
