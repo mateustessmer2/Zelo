@@ -45,7 +45,7 @@ export function AuthProvider({ children }) {
 
     supabase
       .from('perfis')
-      .select('id, role, nome, foto_url, telefone, cidade_id, bairro_id')
+      .select('id, role, nome, foto_url, cidade_id, bairro_id')
       .eq('id', sessao.user.id)
       .maybeSingle()
       .then(({ data }) => {
