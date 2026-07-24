@@ -208,7 +208,7 @@ export async function listarAvaliacoes(alvoId, lado) {
  * Cria uma avaliação. A policy de INSERT exige booking concluído e
  * participação real — não dá pra avaliar quem você não contratou.
  */
-export async function criarAvaliacao({ bookingId, autorId, alvoId, lado, nota, comentario }) {
+export async function criarAvaliacao({ bookingId, autorId, alvoId, lado, nota, comentario, comentarioPrivado }) {
   const { data, error } = await supabase
     .from('avaliacoes')
     .insert({
@@ -217,12 +217,30 @@ export async function criarAvaliacao({ bookingId, autorId, alvoId, lado, nota, c
       alvo_id: alvoId,
       lado,
       nota,
-      comentario
+      comentario,
+      comentario_privado: comentarioPrivado || null
     })
     .select()
     .single()
   if (error) throw error
   return data
+}
+
+/**
+ * Mensagens privadas que EU recebi.
+ *
+ * Lê a view `minhas_avaliacoes_recebidas`, que já filtra por alvo_id e só
+ * entrega o que passou pela liberação simultânea. Não expõe autor nem o
+ * comentário público — a pessoa lê a mensagem sem descobrir quem escreveu
+ * a avaliação pública.
+ */
+export async function listarFeedbackPrivado() {
+  const { data, error } = await supabase
+    .from('minhas_avaliacoes_recebidas')
+    .select('id, booking_id, lado, nota, comentario_privado, created_at')
+    .order('created_at', { ascending: false })
+  if (error) throw error
+  return data ?? []
 }
 
 // ------------------------------------------------------------------ Bookings
