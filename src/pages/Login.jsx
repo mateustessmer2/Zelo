@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
+import { obterPapel } from '../lib/api'
 
 export default function Login() {
   const { entrar } = useAuth()
@@ -15,8 +16,18 @@ export default function Login() {
     setEnviando(true)
     setErro(null)
     try {
-      await entrar(email, senha)
-      navigate('/')
+      // `entrar()` devolve o id direto do resultado do login — não
+      // dependemos de reconsultar a sessão logo em seguida, que corria o
+      // risco de rodar antes do SDK terminar de persistir a sessão nova.
+      const userId = await entrar(email, senha)
+      const role = userId ? await obterPapel(userId).catch(() => null) : null
+
+      navigate(
+        role === 'profissional' ? '/painel-profissional'
+        : role === 'admin' ? '/admin'
+        : role === 'cliente' ? '/painel'
+        : '/'
+      )
     } catch {
       setErro('E-mail ou senha incorretos.')
     } finally {
