@@ -57,8 +57,8 @@ export default function App() {
       <Suspense fallback={<div className="loading">Carregando…</div>}>
         <Routes>
           <Route path="/" element={<Home />} />
-          <Route path="/buscar" element={<Busca />} />
-          <Route path="/profissional/:id" element={<PerfilProfissional />} />
+          <Route path="/buscar" element={<Protegida><Busca /></Protegida>} />
+          <Route path="/profissional/:id" element={<Protegida><PerfilProfissional /></Protegida>} />
           <Route path="/entrar" element={<Login />} />
           <Route path="/cadastrar" element={<Cadastro />} />
           <Route path="/painel" element={<Protegida papel="cliente"><PainelCliente /></Protegida>} />
