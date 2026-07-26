@@ -66,8 +66,13 @@ export function AuthProvider({ children }) {
     ehAdmin: perfil?.role === 'admin',
 
     async entrar(email, senha) {
-      const { error } = await supabase.auth.signInWithPassword({ email, password: senha })
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password: senha })
       if (error) throw error
+      // Devolve o id direto do resultado do login — evita uma segunda
+      // leitura de sessão (getSession) logo em seguida, que corria risco
+      // de rodar antes do SDK terminar de persistir a sessão nova e voltar
+      // vazia. Foi a causa de o login "não navegar a lugar nenhum".
+      return data.user?.id ?? null
     },
 
     async cadastrar({ email, senha, nome, role, cidadeId, bairroId }) {
