@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import {
   listarBookingsCliente, atualizarStatusBooking, obterTrustScore,
   listarBookingsAvaliadosPorMim, rotuloTurno
@@ -51,12 +52,15 @@ export default function PainelCliente() {
   return (
     <>
       <div className="wrap">
-        <div className="subnav">
-          {ABAS.map((a) => (
-            <button key={a.id} className={`snav ${aba === a.id ? 'on' : ''}`} onClick={() => setAba(a.id)}>
-              {a.label}
-            </button>
-          ))}
+        <div className="subnav" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ display: 'flex' }}>
+            {ABAS.map((a) => (
+              <button key={a.id} className={`snav ${aba === a.id ? 'on' : ''}`} onClick={() => setAba(a.id)}>
+                {a.label}
+              </button>
+            ))}
+          </div>
+          <Link to="/buscar" className="btn sm">Encontrar profissionais</Link>
         </div>
       </div>
 
