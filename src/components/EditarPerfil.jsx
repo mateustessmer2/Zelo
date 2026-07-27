@@ -118,8 +118,10 @@ export default function EditarPerfil({ onSalvo }) {
       if (telefone) await salvarContato(perfil.id, { telefone })
       setOk(true)
       onSalvo?.()
-    } catch {
-      setErro('Não foi possível salvar. Tente novamente.')
+    } catch (err) {
+      // Mensagem real em vez de genérica — sem console à mão, este texto é
+      // a única pista de qual coluna ou permissão falhou.
+      setErro(err?.message ?? 'Não foi possível salvar. Tente novamente.')
     } finally {
       setSalvando(false)
     }
