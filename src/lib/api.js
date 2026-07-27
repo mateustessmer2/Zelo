@@ -188,6 +188,51 @@ export async function buscarProfissionais({ categoriaId, bairroId, turno, limite
  * lado: 'cliente_avalia_prof' (reputação da profissional)
  *       'prof_avalia_cliente' (reputação do cliente)
  */
+/**
+ * Perfil completo da profissional.
+ *
+ * Consultas separadas em vez de um select aninhado: os joins duplos via
+ * tabela de junção com chave composta (profissional_categorias -> categorias)
+ * são frágeis no PostgREST e falhavam silenciosamente. Três queries simples
+ * são mais previsíveis — e cada uma pode falhar sem derrubar as outras.
+ */
+export async function obterProfissional(id) {
+  const { data: prof, error } = await supabase
+    .from('profissionais')
+    .select('*')
+    .eq('id', id)
+    .maybeSingle()
+  if (error) throw error
+  if (!prof) return null
+
+  const [{ data: perfilRow }, { data: cats }, { data: bairs }] = await Promise.all([
+    supabase.from('perfis').select('nome, foto_url, cidade_id, bairro_id').eq('id', id).maybeSingle(),
+    supabase.from('profissional_categorias').select('categoria_id').eq('profissional_id', id),
+    supabase.from('profissional_bairros').select('bairro_id').eq('profissional_id', id)
+  ])
+
+  const categoriaIds = (cats ?? []).map((c) => c.categoria_id)
+  const bairroIds = (bairs ?? []).map((b) => b.bairro_id)
+
+  const [{ data: categoriasNomes }, { data: bairrosNomes }] = await Promise.all([
+    categoriaIds.length
+      ? supabase.from('categorias').select('id, nome, icone').in('id', categoriaIds)
+      : Promise.resolve({ data: [] }),
+    bairroIds.length
+      ? supabase.from('bairros').select('id, nome').in('id', bairroIds)
+      : Promise.resolve({ data: [] })
+  ])
+
+  return {
+    ...prof,
+    perfis: perfilRow ?? null,
+    categorias: categoriasNomes ?? [],
+    bairros: bairrosNomes ?? [],
+    profissional_categorias: (categoriasNomes ?? []).map((c) => ({ categorias: c })),
+    profissional_bairros: (bairrosNomes ?? []).map((b) => ({ bairros: b }))
+  }
+}
+
 export async function obterTrustScore(perfilId, lado) {
   const { data, error } = await supabase
     .from('trust_scores')
