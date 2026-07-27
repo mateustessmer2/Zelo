@@ -1,8 +1,8 @@
 import { Link } from 'react-router-dom'
 
 /**
- * Home. Só a decisão de entrar ou criar conta — nada de busca, categorias
- * ou selos antes do login.
+ * Home. Logo, slogan e proposta de valor, seguidos da decisão de entrar
+ * ou criar conta — nada de busca, categorias ou selos antes do login.
  *
  * Isso inverte a razão de a busca ter sido liberada para visitantes sem
  * conta (migração 09/D): se ninguém chega à busca sem antes logar, esse
@@ -16,9 +16,21 @@ export default function Home() {
         minHeight: '70vh', display: 'flex', flexDirection: 'column',
         justifyContent: 'center', alignItems: 'center', textAlign: 'center'
       }}>
-        <div style={{ fontFamily: "'Fraunces',serif", fontWeight: 600, fontSize: 34, color: 'var(--sage-900)', marginBottom: 40 }}>
+        <div style={{ fontFamily: "'Fraunces',serif", fontWeight: 600, fontSize: 34, color: 'var(--sage-900)', marginBottom: 18 }}>
           <span className="dot" style={{ marginRight: 10 }} />Zelo
         </div>
+
+        <h1 style={{
+          fontFamily: "'Fraunces',serif", fontWeight: 600, fontSize: 26,
+          color: 'var(--sage-900)', margin: '0 0 14px', maxWidth: 380, lineHeight: 1.25
+        }}>
+          Encontre profissionais de confiança.
+        </h1>
+
+        <p className="lead" style={{ maxWidth: 380, marginBottom: 40 }}>
+          Faxineiras, babás e cuidadoras de idosos verificadas para cuidar
+          da sua casa e da sua família.
+        </p>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12, width: '100%', maxWidth: 320 }}>
           <Link
