@@ -4,19 +4,29 @@ import { useAuth } from '../hooks/useAuth'
 import { listarCidadesAtivas, listarBairros } from '../lib/api'
 
 /**
- * Cadastro. O papel escolhido aqui define o que a pessoa enxerga depois —
- * inclusive qual lado das avaliações ela consegue ler (ver RLS).
+ * Cadastro em duas telas.
  *
- * A profissional entra com verificação pendente e NÃO aparece na busca até
- * identidade, antecedentes e selfie serem aprovados. Isso é dito na tela, não
- * escondido: a barreira é o produto, não um obstáculo.
+ * TELA 1 — só a escolha do papel, como dois cartões grandes, nada mais na
+ * página. Antes, papel era um chip discreto competindo visualmente com
+ * nome/e-mail/senha; a escolha mais importante do cadastro (o que define o
+ * que a pessoa vê depois — inclusive qual lado das avaliações ela consegue
+ * ler) tinha o mesmo peso visual que preencher o e-mail.
+ *
+ * Vindo de um link com `?tipo=`, a tela 1 é pulada — o botão do Header já
+ * decidiu por quem clicou nele.
+ *
+ * TELA 2 — formulário normal, já sabendo o papel.
  */
 export default function Cadastro() {
   const [params] = useSearchParams()
   const { cadastrar } = useAuth()
   const navigate = useNavigate()
 
-  const [role, setRole] = useState(params.get('tipo') === 'profissional' ? 'profissional' : 'cliente')
+  const tipoDaUrl = params.get('tipo') === 'profissional' ? 'profissional'
+    : params.get('tipo') === 'cliente' ? 'cliente'
+    : null
+
+  const [role, setRole] = useState(tipoDaUrl)
   const [nome, setNome] = useState('')
   const [email, setEmail] = useState('')
   const [senha, setSenha] = useState('')
@@ -53,19 +63,71 @@ export default function Cadastro() {
     }
   }
 
+  // ------------------------------------------------------------------ Tela 1
+  if (!role) {
+    return (
+      <main className="wrap fade-in" style={{ padding: '50px 0 60px', maxWidth: 520 }}>
+        <h2 style={{ textAlign: 'center' }}>O que você precisa?</h2>
+        <p className="lead" style={{ textAlign: 'center', marginBottom: 30 }}>
+          Isso define o que você vai ver e fazer no Zelo.
+        </p>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <button
+            type="button"
+            onClick={() => setRole('cliente')}
+            className="card"
+            style={{
+              textAlign: 'left', cursor: 'pointer', border: '2px solid var(--line)',
+              padding: '22px 20px', background: 'var(--paper)'
+            }}
+          >
+            <div style={{ fontSize: 17, fontWeight: 700, color: 'var(--sage-900)', marginBottom: 4 }}>
+              Preciso contratar
+            </div>
+            <div style={{ fontSize: 14, color: 'var(--muted)' }}>
+              Encontrar faxineira, babá ou cuidadora verificada perto de você.
+            </div>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setRole('profissional')}
+            className="card"
+            style={{
+              textAlign: 'left', cursor: 'pointer', border: '2px solid var(--line)',
+              padding: '22px 20px', background: 'var(--paper)'
+            }}
+          >
+            <div style={{ fontSize: 17, fontWeight: 700, color: 'var(--sage-900)', marginBottom: 4 }}>
+              Quero oferecer serviços
+            </div>
+            <div style={{ fontSize: 14, color: 'var(--muted)' }}>
+              Aparecer para famílias que procuram o que você faz, com verificação e avaliações reais.
+            </div>
+          </button>
+        </div>
+
+        <p style={{ textAlign: 'center', marginTop: 26, fontSize: 14, color: 'var(--muted)' }}>
+          Já tem conta? <Link to="/entrar" style={{ color: 'var(--sage-700)', fontWeight: 600 }}>Entrar</Link>
+        </p>
+      </main>
+    )
+  }
+
+  // ------------------------------------------------------------------ Tela 2
   return (
     <main className="wrap fade-in" style={{ padding: '40px 0 60px', maxWidth: 460 }}>
-      <h2>Criar conta</h2>
-      <p className="lead" style={{ marginBottom: 24 }}>Leva menos de dois minutos.</p>
+      <button
+        type="button"
+        onClick={() => setRole(null)}
+        style={{ background: 'none', border: 'none', color: 'var(--muted)', fontSize: 13.5, marginBottom: 14, cursor: 'pointer', padding: 0 }}
+      >
+        ← Trocar
+      </button>
 
-      <div className="chips" style={{ marginBottom: 22 }}>
-        <button type="button" className={`chip ${role === 'cliente' ? 'on' : ''}`} onClick={() => setRole('cliente')}>
-          Preciso contratar
-        </button>
-        <button type="button" className={`chip ${role === 'profissional' ? 'on' : ''}`} onClick={() => setRole('profissional')}>
-          Quero oferecer serviços
-        </button>
-      </div>
+      <h2>{role === 'profissional' ? 'Cadastro de profissional' : 'Cadastro de cliente'}</h2>
+      <p className="lead" style={{ marginBottom: 24 }}>Leva menos de dois minutos.</p>
 
       <form onSubmit={submeter}>
         {erro && <div className="erro">{erro}</div>}
@@ -96,7 +158,11 @@ export default function Cadastro() {
             <label htmlFor="bairro">Bairro</label>
             <select id="bairro" value={bairroId} onChange={(e) => setBairroId(e.target.value)}>
               <option value="">Selecione</option>
-              {bairros.map((b) => <option key={b.id} value={b.id}>{b.nome}</option>)}
+              {bairros.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.nome === 'Outro / não listado' ? 'Outros bairros' : b.nome}
+                </option>
+              ))}
             </select>
           </div>
         </div>
@@ -109,7 +175,7 @@ export default function Cadastro() {
             <p>
               <b>Próximo passo: verificação.</b> Depois do cadastro você envia documento de
               identidade, certidão de antecedentes e uma selfie. Seu perfil entra na busca automaticamente
-              assim que os dois forem aprovados. Seus documentos ficam privados — clientes veem
+              assim que os três forem aprovados. Seus documentos ficam privados — clientes veem
               apenas o selo de verificada.
             </p>
           </div>
