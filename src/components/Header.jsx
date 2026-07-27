@@ -28,7 +28,7 @@ export default function Header() {
 
   return (
     <header className="wrap header">
-      <Link to="/" className="logo"><span className="dot" />Zelo</Link>
+      <Link to={sessao ? (painel ?? '/') : '/'} className="logo"><span className="dot" />Zelo</Link>
       {!naHomeDeslogado && (
         <nav style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
           {sessao ? (
