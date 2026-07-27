@@ -159,7 +159,7 @@ export default function PainelProfissional() {
         {aba === 'agenda' && <Agenda />}
 
         {aba === 'verificacao' && (
-          <Verificacao perfilId={perfil.id} verificacoes={verificacoes} idOk={idOk} antOk={antOk} noAr={noAr}
+          <Verificacao perfilId={perfil.id} verificacoes={verificacoes} idOk={idOk} antOk={antOk} selfieOk={selfieOk} noAr={noAr}
             onEnviado={() => listarVerificacoes(perfil.id).then(setVerificacoes)} />
         )}
 
@@ -245,7 +245,7 @@ export default function PainelProfissional() {
 }
 
 /** Envio de documentos sensíveis — bucket privado, cliente nunca acessa. */
-function Verificacao({ perfilId, verificacoes, idOk, antOk, noAr, onEnviado }) {
+function Verificacao({ perfilId, verificacoes, idOk, antOk, selfieOk, noAr, onEnviado }) {
   const [erro, setErro] = useState(null)
   const [enviando, setEnviando] = useState(null)
 
