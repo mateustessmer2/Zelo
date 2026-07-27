@@ -51,8 +51,10 @@ export default function Busca() {
         categoriaId: categoriaId || null, bairroId: bairroId || null, turno: turno || null
       })
       setResultados(rs)
-    } catch {
-      setErro('Não foi possível buscar agora. Tente novamente.')
+    } catch (err) {
+      // Mostra a causa real. O `[etapa]` no início diz qual consulta falhou —
+      // sem isso, qualquer problema virava a mesma mensagem genérica.
+      setErro(err?.message ?? 'Não foi possível buscar agora. Tente novamente.')
     } finally {
       setBuscando(false)
     }
