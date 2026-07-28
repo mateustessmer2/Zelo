@@ -19,7 +19,7 @@ export default function Home() {
         justifyContent: 'center', alignItems: 'center', textAlign: 'center'
       }}>
         <img
-          src="/zelo-logo.jpg"
+          src="/zelo-logo.jpeg"
           alt="Zelo — encontre profissionais de confiança"
           width={640}
           height={640}
