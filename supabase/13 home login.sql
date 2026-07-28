@@ -1,0 +1,53 @@
+-- ============================================================================
+-- MIGRAÇÃO 13 — HOME SÓ COM LOGIN/CADASTRO
+-- ----------------------------------------------------------------------------
+-- Rode DEPOIS de 01 a 12.
+--
+-- O QUE MUDOU NO PRODUTO
+--
+-- A home deixou de mostrar categorias e busca para visitantes sem conta.
+-- Agora ela só oferece "Entrar" ou "Criar conta" — a busca (`/buscar`) e o
+-- perfil da profissional (`/profissional/:id`) passaram a exigir sessão no
+-- frontend (ver App.jsx: rotas dentro de <Protegida>, sem exigir papel
+-- específico).
+--
+-- POR QUE ESTE ARQUIVO NÃO REVOGA O GRANT PARA `anon`
+--
+-- A migração 09 concedeu leitura a `anon` em profissionais, perfis e as
+-- tabelas de junção, especificamente para a busca funcionar sem login. Essa
+-- razão não existe mais no frontend — mas o grant continua aqui, por dois
+-- motivos:
+--
+--   1. RLS já limita o que um `anon` autenticado por engano (ou por uma
+--      chamada direta à API, fora do app) consegue ver: só profissionais
+--      com `visivel = true` — nunca dados privados, documentos ou
+--      contatos. Revogar o grant não fecha nenhum buraco de segurança
+--      que ainda esteja aberto; a proteção real já é a policy.
+--
+--   2. Revogar teria um custo real: se amanhã você decidir (por SEO, por
+--      um link que alguém compartilha, por uma futura versão web pública)
+--      voltar a expor a busca sem login, o grant precisaria ser recriado.
+--      Manter como está é reversível nos dois sentidos sem risco.
+--
+-- Se no futuro você quiser fechar isso por princípio de menor privilégio
+-- (nenhum acesso anônimo a NADA, mesmo que o RLS já filtre), o bloco abaixo
+-- faz isso — deixado comentado, para você decidir quando quiser.
+-- ============================================================================
+
+-- ----------------------------------------------------------------------------
+-- OPCIONAL — revogar leitura anônima, já que o frontend não usa mais
+-- ----------------------------------------------------------------------------
+-- revoke select on profissionais, perfis, profissional_categorias,
+--                 profissional_bairros, disponibilidade
+--   from anon;
+--
+-- Atenção: isso também bloquearia qualquer chamada direta à API REST feita
+-- por fora do app (um script, uma automação futura) sem estar logada. Se
+-- você não tem nenhum uso desses hoje, é seguro rodar.
+-- ----------------------------------------------------------------------------
+
+
+-- ----------------------------------------------------------------------------
+-- Nada a alterar em RLS ou schema — esta é uma migração de documentação.
+-- A mudança real está no código React (App.jsx, Home.jsx, Busca.jsx).
+-- ----------------------------------------------------------------------------

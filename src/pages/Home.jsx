@@ -1,13 +1,15 @@
 import { Link } from 'react-router-dom'
 
 /**
- * Home. Logo, slogan e proposta de valor, seguidos da decisão de entrar
- * ou criar conta — nada de busca, categorias ou selos antes do login.
+ * Home. Logo, proposta de valor e a decisão de entrar ou criar conta —
+ * nada de busca, categorias ou selos antes do login.
  *
- * Isso inverte a razão de a busca ter sido liberada para visitantes sem
- * conta (migração 09/D): se ninguém chega à busca sem antes logar, esse
- * grant deixou de ter uso — ver nota no 13_home_login.sql sobre por que
- * ele foi deixado como está, e não revertido.
+ * O logo já traz o nome e o slogan ("Encontre profissionais de confiança"),
+ * então o texto deles saiu daqui: repetir na página seria dizer a mesma
+ * coisa duas vezes na mesma tela.
+ *
+ * `alt` descreve o conteúdo do logo para quem usa leitor de tela ou está
+ * com a imagem bloqueada por conexão ruim.
  */
 export default function Home() {
   return (
@@ -16,18 +18,18 @@ export default function Home() {
         minHeight: '70vh', display: 'flex', flexDirection: 'column',
         justifyContent: 'center', alignItems: 'center', textAlign: 'center'
       }}>
-        <div style={{ fontFamily: "'Fraunces',serif", fontWeight: 600, fontSize: 34, color: 'var(--sage-900)', marginBottom: 18 }}>
-          <span className="dot" style={{ marginRight: 10 }} />Zelo
-        </div>
+        <img
+          src="/zelo-logo.jpg"
+          alt="Zelo — encontre profissionais de confiança"
+          width={640}
+          height={640}
+          style={{
+            width: '100%', maxWidth: 280, height: 'auto',
+            marginBottom: 10
+          }}
+        />
 
-        <h1 style={{
-          fontFamily: "'Fraunces',serif", fontWeight: 600, fontSize: 26,
-          color: 'var(--sage-900)', margin: '0 0 14px', maxWidth: 380, lineHeight: 1.25
-        }}>
-          Encontre profissionais de confiança.
-        </h1>
-
-        <p className="lead" style={{ maxWidth: 380, marginBottom: 40 }}>
+        <p className="lead" style={{ maxWidth: 360, marginBottom: 36 }}>
           Faxineiras, babás e cuidadoras de idosos verificadas para cuidar
           da sua casa e da sua família.
         </p>

@@ -22,7 +22,7 @@ export default function EditarPerfil({ onSalvo }) {
   const [idade, setIdade] = useState('')
   const [experiencia, setExperiencia] = useState('')
   const [especialidades, setEspecialidades] = useState('')
-  const [valorMeioTurno, setValorMeioTurno] = useState('')
+  const [valorHora, setValorHora] = useState('')
   const [valorDiaria, setValorDiaria] = useState('')
   const [telefone, setTelefone] = useState('')
 
@@ -30,7 +30,6 @@ export default function EditarPerfil({ onSalvo }) {
   const [catSel, setCatSel] = useState([])
   const [bairros, setBairros] = useState([])
   const [bairroSel, setBairroSel] = useState([])
-  const [atendeTodos, setAtendeTodos] = useState(false)
 
   const [carregando, setCarregando] = useState(true)
   const [salvando, setSalvando] = useState(false)
@@ -60,9 +59,8 @@ export default function EditarPerfil({ onSalvo }) {
         setIdade(prof.idade ?? '')
         setExperiencia(prof.experiencia ?? '')
         setEspecialidades((prof.especialidades ?? []).join(', '))
-        setValorMeioTurno(prof.valor_meio_turno ?? '')
+        setValorHora(prof.valor_hora ?? '')
         setValorDiaria(prof.valor_diaria ?? '')
-        setAtendeTodos(!!prof.atende_todos_bairros)
       } else {
         setNome(perfil.nome ?? '')
       }
@@ -106,22 +104,16 @@ export default function EditarPerfil({ onSalvo }) {
         especialidades: especialidades
           ? especialidades.split(',').map((s) => s.trim()).filter(Boolean)
           : [],
-        valor_meio_turno: valorMeioTurno ? Number(valorMeioTurno) : null,
-        valor_diaria: valorDiaria ? Number(valorDiaria) : null,
-        atende_todos_bairros: atendeTodos
+        valor_hora: valorHora ? Number(valorHora) : null,
+        valor_diaria: valorDiaria ? Number(valorDiaria) : null
       })
       await definirCategorias(perfil.id, catSel)
-      // Bairros marcados individualmente só importam quando "atende todos"
-      // está desligado — mas gravamos do jeito que estiver na tela, sem
-      // apagar o histórico de bairros caso ela desmarque depois.
       await definirBairros(perfil.id, bairroSel)
       if (telefone) await salvarContato(perfil.id, { telefone })
       setOk(true)
       onSalvo?.()
-    } catch (err) {
-      // Mensagem real em vez de genérica — sem console à mão, este texto é
-      // a única pista de qual coluna ou permissão falhou.
-      setErro(err?.message ?? 'Não foi possível salvar. Tente novamente.')
+    } catch {
+      setErro('Não foi possível salvar. Tente novamente.')
     } finally {
       setSalvando(false)
     }
@@ -201,12 +193,7 @@ export default function EditarPerfil({ onSalvo }) {
       <div className="card">
         <h3>Bairros que você atende</h3>
         <div className="chips">
-          <button
-            type="button"
-            className={`chip ${atendeTodos ? 'on' : ''}`}
-            onClick={() => setAtendeTodos(!atendeTodos)}
-          >TODOS</button>
-          {!atendeTodos && bairros.map((b) => (
+          {bairros.map((b) => (
             <button
               key={b.id} type="button"
               className={`chip ${bairroSel.includes(b.id) ? 'on' : ''}`}
@@ -214,22 +201,17 @@ export default function EditarPerfil({ onSalvo }) {
             >{b.nome}</button>
           ))}
         </div>
-        {atendeTodos && (
-          <p style={{ fontSize: 12.5, color: 'var(--muted)', marginTop: 10 }}>
-            Você vai aparecer em buscas de qualquer bairro. Toque em "TODOS" de novo para escolher bairros específicos.
-          </p>
-        )}
       </div>
 
       <div className="card">
         <h3>Seus valores</h3>
         <div className="row">
           <div className="field">
-            <label htmlFor="vh">Meio turno — 4h (R$)</label>
-            <input id="vh" type="number" step="0.01" value={valorMeioTurno} onChange={(e) => setValorMeioTurno(e.target.value)} />
+            <label htmlFor="vh">Valor por hora (R$)</label>
+            <input id="vh" type="number" step="0.01" value={valorHora} onChange={(e) => setValorHora(e.target.value)} />
           </div>
           <div className="field">
-            <label htmlFor="vd">Turno integral — 8h (R$)</label>
+            <label htmlFor="vd">Valor por diária (R$)</label>
             <input id="vd" type="number" step="0.01" value={valorDiaria} onChange={(e) => setValorDiaria(e.target.value)} />
           </div>
         </div>

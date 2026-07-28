@@ -70,7 +70,7 @@ export function AuthProvider({ children }) {
       if (error) throw error
     },
 
-    async cadastrar({ email, senha, nome, role, cidadeId, bairroId }) {
+    async cadastrar({ email, senha, nome, role, cidadeId, bairroId, consentimento }) {
       const { data, error } = await supabase.auth.signUp({ email, password: senha })
       if (error) throw error
 
@@ -85,8 +85,17 @@ export function AuthProvider({ children }) {
       // Profissional ganha a linha em `profissionais` já com verificação pendente.
       // Ela só aparece na busca depois que identidade E antecedentes forem
       // aprovados — a coluna `visivel` é gerada pelo banco.
+      //
+      // O consentimento é gravado aqui junto: data e versão do termo são a
+      // prova exigida pela LGPD (art. 8º, §2º). Sem isso, o checkbox só
+      // existiria na tela e não provaria nada depois.
       if (role === 'profissional') {
-        const { error: profErr } = await supabase.from('profissionais').insert({ id: userId })
+        const { error: profErr } = await supabase.from('profissionais').insert({
+          id: userId,
+          consentimento_verificacao: !!consentimento?.aceito,
+          consentimento_em: consentimento?.aceito ? new Date().toISOString() : null,
+          consentimento_versao: consentimento?.aceito ? consentimento.versao : null
+        })
         if (profErr) throw profErr
       }
     },

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams, Link } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { listarCidadesAtivas, listarBairros } from '../lib/api'
+import TermoConsentimento, { VERSAO_TERMO } from '../components/TermoConsentimento'
 
 /**
  * Cadastro em duas telas.
@@ -36,6 +37,7 @@ export default function Cadastro() {
   const [bairroId, setBairroId] = useState('')
   const [erro, setErro] = useState(null)
   const [enviando, setEnviando] = useState(false)
+  const [aceitouTermo, setAceitouTermo] = useState(false)
 
   useEffect(() => {
     listarCidadesAtivas().then((cs) => {
@@ -54,7 +56,13 @@ export default function Cadastro() {
     setEnviando(true)
     setErro(null)
     try {
-      await cadastrar({ email, senha, nome, role, cidadeId, bairroId: bairroId || null })
+      await cadastrar({
+        email, senha, nome, role, cidadeId, bairroId: bairroId || null,
+        // Só a profissional envia documentos, então só ela consente.
+        consentimento: role === 'profissional'
+          ? { aceito: aceitouTermo, versao: VERSAO_TERMO }
+          : null
+      })
       navigate(role === 'profissional' ? '/painel-profissional' : '/painel')
     } catch (err) {
       setErro(err?.message ?? 'Não foi possível criar a conta.')
@@ -168,6 +176,10 @@ export default function Cadastro() {
         </div>
 
         {role === 'profissional' && (
+          <TermoConsentimento aceito={aceitouTermo} onChange={setAceitouTermo} />
+        )}
+
+        {role === 'profissional' && (
           <div className="note warn">
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#b8862c" strokeWidth="2">
               <circle cx="12" cy="12" r="10" /><path d="M12 8v4M12 16h.01" />
@@ -181,7 +193,12 @@ export default function Cadastro() {
           </div>
         )}
 
-        <button className="btn full" type="submit" disabled={enviando} style={{ marginTop: 18 }}>
+        <button
+          className="btn full"
+          type="submit"
+          disabled={enviando || (role === 'profissional' && !aceitouTermo)}
+          style={{ marginTop: 18 }}
+        >
           {enviando ? 'Criando conta…' : 'Criar conta'}
         </button>
       </form>
