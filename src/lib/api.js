@@ -48,7 +48,8 @@ export async function listarCategoriasAtivas() {
  * Busca profissionais compatíveis com a necessidade do cliente.
  *
  * Não é preciso filtrar por `visivel` aqui: a policy `prof_select_visiveis`
- * já esconde quem não passou pela verificação de identidade + antecedentes.
+ * já esconde quem não passou pela verificação de identidade + selfie
+ * (antecedentes está temporariamente fora do gate — ver migração 16).
  * Deixamos o filtro explícito mesmo assim, por clareza de intenção.
  */
 /**
@@ -70,27 +71,39 @@ function turnosCompativeis(turnoPedido) {
 }
 
 export async function buscarProfissionais({ categoriaId, bairroId, turno, limite = 6 }) {
-  // Passo 1: filtra os ids pelas tabelas de junção, separadamente.
+  // Cada etapa identifica a si mesma no erro. Sem isso, qualquer falha aqui
+  // virava um "não foi possível buscar" genérico, e descobrir a causa exigia
+  // console do navegador — que nem sempre está à mão.
+  const etapa = async (nome, fn) => {
+    const { data, error } = await fn()
+    if (error) throw new Error(`[${nome}] ${error.message ?? error.code ?? 'erro desconhecido'}`)
+    return data ?? []
+  }
+
   let ids = null
 
   if (categoriaId) {
-    const { data, error } = await supabase
-      .from('profissional_categorias')
-      .select('profissional_id')
-      .eq('categoria_id', categoriaId)
-    if (error) throw error
-    ids = (data ?? []).map((r) => r.profissional_id)
+    const rows = await etapa('categorias', () =>
+      supabase.from('profissional_categorias').select('profissional_id').eq('categoria_id', categoriaId)
+    )
+    ids = rows.map((r) => r.profissional_id)
     if (!ids.length) return []
   }
 
   if (bairroId) {
-    const { data, error } = await supabase
-      .from('profissional_bairros')
-      .select('profissional_id')
-      .eq('bairro_id', bairroId)
-    if (error) throw error
-    const doBairro = (data ?? []).map((r) => r.profissional_id)
-    ids = ids ? ids.filter((id) => doBairro.includes(id)) : doBairro
+    // Quem marcou "atende todos os bairros" entra na busca por QUALQUER
+    // bairro, mesmo sem linha em profissional_bairros.
+    const doBairroRows = await etapa('bairros', () =>
+      supabase.from('profissional_bairros').select('profissional_id').eq('bairro_id', bairroId)
+    )
+    const todosRows = await etapa('atende-todos', () =>
+      supabase.from('profissionais').select('id').eq('atende_todos_bairros', true)
+    )
+    const doBairro = new Set([
+      ...doBairroRows.map((r) => r.profissional_id),
+      ...todosRows.map((r) => r.id)
+    ])
+    ids = ids ? ids.filter((id) => doBairro.has(id)) : [...doBairro]
     if (!ids.length) return []
   }
 
@@ -99,70 +112,83 @@ export async function buscarProfissionais({ categoriaId, bairroId, turno, limite
   // ninguém preenche agenda, e escondê-las esvaziaria a busca.
   const compativeis = turnosCompativeis(turno)
   if (compativeis) {
-    const { data, error } = await supabase
-      .from('disponibilidade')
-      .select('profissional_id, turno')
-    if (error) throw error
-
-    const comAgenda = new Set((data ?? []).map((d) => d.profissional_id))
-    const atendem = new Set(
-      (data ?? []).filter((d) => compativeis.includes(d.turno)).map((d) => d.profissional_id)
+    const disp = await etapa('disponibilidade', () =>
+      supabase.from('disponibilidade').select('profissional_id, turno')
     )
 
+    const comAgenda = new Set(disp.map((d) => d.profissional_id))
+    const atendem = new Set(
+      disp.filter((d) => compativeis.includes(d.turno)).map((d) => d.profissional_id)
+    )
     const passa = (id) => !comAgenda.has(id) || atendem.has(id)
-    ids = ids ? ids.filter(passa) : null
 
-    // Sem filtro anterior, precisamos excluir só quem tem agenda incompatível
-    if (!ids) {
+    if (ids) {
+      ids = ids.filter(passa)
+    } else {
       const incompativeis = [...comAgenda].filter((id) => !atendem.has(id))
       if (incompativeis.length) {
-        const { data: todos } = await supabase
-          .from('profissionais').select('id').eq('visivel', true)
-        ids = (todos ?? []).map((p) => p.id).filter((id) => !incompativeis.includes(id))
+        const todos = await etapa('visiveis', () =>
+          supabase.from('profissionais').select('id').eq('visivel', true)
+        )
+        ids = todos.map((p) => p.id).filter((id) => !incompativeis.includes(id))
       }
     }
     if (ids && !ids.length) return []
   }
 
-  // Passo 2: busca as profissionais visíveis entre esses ids.
-  // O filtro por `visivel` é redundante (a policy já esconde), mas deixa
-  // a intenção explícita.
+  // `.in('id', [])` gera uma URL que o PostgREST rejeita com 400. Um array
+  // vazio aqui significa "nenhum candidato", então saímos antes.
+  if (Array.isArray(ids) && ids.length === 0) return []
+
   let query = supabase
     .from('profissionais')
-    .select('id, descricao, idade, valor_hora, valor_diaria, tempo_resposta_min, visivel')
+    .select('id, descricao, idade, valor_meio_turno, valor_diaria, tempo_resposta_min, visivel, atende_todos_bairros, selo')
     .eq('visivel', true)
     .limit(limite)
 
   if (ids) query = query.in('id', ids)
 
-  const { data: profs, error } = await query
-  if (error) throw error
-  if (!profs?.length) return []
+  const profs = await etapa('perfis-visiveis', () => query)
+  if (!profs.length) return []
 
-  // Passo 3: nomes e bairros num segundo passo.
   const profIds = profs.map((p) => p.id)
-  const [{ data: perfisRows }, { data: vinculos }] = await Promise.all([
-    supabase.from('perfis').select('id, nome, foto_url').in('id', profIds),
+  const perfisRows = await etapa('nomes', () =>
+    supabase.from('perfis').select('id, nome, foto_url').in('id', profIds)
+  )
+  const vinculos = await etapa('vinculos-bairro', () =>
     supabase.from('profissional_bairros').select('profissional_id, bairro_id').in('profissional_id', profIds)
-  ])
+  )
 
-  const bairroIds = [...new Set((vinculos ?? []).map((v) => v.bairro_id))]
-  const { data: bairrosRows } = bairroIds.length
-    ? await supabase.from('bairros').select('id, nome').in('id', bairroIds)
-    : { data: [] }
+  const bairroIds = [...new Set(vinculos.map((v) => v.bairro_id))]
+  const bairrosRows = bairroIds.length
+    ? await etapa('nomes-bairro', () =>
+        supabase.from('bairros').select('id, nome').in('id', bairroIds)
+      )
+    : []
 
-  const nomePorId = Object.fromEntries((perfisRows ?? []).map((p) => [p.id, p]))
-  const bairroPorId = Object.fromEntries((bairrosRows ?? []).map((b) => [b.id, b]))
+  const nomePorId = Object.fromEntries(perfisRows.map((p) => [p.id, p]))
+  const bairroPorId = Object.fromEntries(bairrosRows.map((b) => [b.id, b]))
 
   return profs.map((p) => ({
     ...p,
     perfis: nomePorId[p.id] ?? null,
-    profissional_bairros: (vinculos ?? [])
-      .filter((v) => v.profissional_id === p.id)
-      .map((v) => ({ bairros: bairroPorId[v.bairro_id] ?? null }))
+    profissional_bairros: p.atende_todos_bairros
+      ? []
+      : vinculos
+          .filter((v) => v.profissional_id === p.id)
+          .map((v) => ({ bairros: bairroPorId[v.bairro_id] ?? null }))
   }))
 }
 
+
+// ------------------------------------------------------------- Trust scores
+/**
+ * Indicadores agregados. É o ÚNICO caminho pelo qual alguém enxerga a
+ * reputação que recebeu — nunca os comentários individuais.
+ *
+ * lado: 'cliente_avalia_prof' (reputação da profissional)
+ *       'prof_avalia_cliente' (reputação do cliente)
+ */
 /**
  * Perfil completo da profissional.
  *
@@ -186,7 +212,6 @@ export async function obterProfissional(id) {
     supabase.from('profissional_bairros').select('bairro_id').eq('profissional_id', id)
   ])
 
-  // Resolve os nomes num segundo passo, só se houver vínculos
   const categoriaIds = (cats ?? []).map((c) => c.categoria_id)
   const bairroIds = (bairs ?? []).map((b) => b.bairro_id)
 
@@ -204,20 +229,11 @@ export async function obterProfissional(id) {
     perfis: perfilRow ?? null,
     categorias: categoriasNomes ?? [],
     bairros: bairrosNomes ?? [],
-    // Mantém o formato antigo para quem já consome estas chaves
     profissional_categorias: (categoriasNomes ?? []).map((c) => ({ categorias: c })),
     profissional_bairros: (bairrosNomes ?? []).map((b) => ({ bairros: b }))
   }
 }
 
-// ------------------------------------------------------------- Trust scores
-/**
- * Indicadores agregados. É o ÚNICO caminho pelo qual alguém enxerga a
- * reputação que recebeu — nunca os comentários individuais.
- *
- * lado: 'cliente_avalia_prof' (reputação da profissional)
- *       'prof_avalia_cliente' (reputação do cliente)
- */
 export async function obterTrustScore(perfilId, lado) {
   const { data, error } = await supabase
     .from('trust_scores')
@@ -369,7 +385,7 @@ async function enriquecerBookings(bookings, outraParte) {
     bairroIds.length ? supabase.from('bairros').select('id, nome').in('id', bairroIds) : Promise.resolve({ data: [] }),
     pessoaIds.length ? supabase.from('perfis').select('id, nome, foto_url').in('id', pessoaIds) : Promise.resolve({ data: [] }),
     outraParte === 'profissional' && pessoaIds.length
-      ? supabase.from('profissionais').select('id, valor_hora').in('id', pessoaIds)
+      ? supabase.from('profissionais').select('id, valor_meio_turno').in('id', pessoaIds)
       : Promise.resolve({ data: [] })
   ])
 
@@ -486,6 +502,80 @@ export async function listarVerificacoes(profissionalId) {
     .eq('profissional_id', profissionalId)
   if (error) throw error
   return data
+}
+
+/** Rótulo legível de cada selo, usado no perfil e nos cartões de busca. */
+export function rotuloSelo(selo) {
+  return { bronze: 'Bronze', prata: 'Prata', ouro: 'Ouro' }[selo] ?? null
+}
+
+/**
+ * Referências de trabalho da própria profissional (para ela ver o status).
+ * Nome e telefone da referência só aparecem aqui e na fila do admin —
+ * nunca no perfil público nem para o cliente. O selo é o único reflexo
+ * disso que qualquer outra pessoa enxerga.
+ */
+export async function listarReferencias(profissionalId) {
+  const { data, error } = await supabase
+    .from('referencias_trabalho')
+    .select('id, nome_referencia, telefone, status, observacao, created_at')
+    .eq('profissional_id', profissionalId)
+    .order('created_at')
+  if (error) throw error
+  return data
+}
+
+/**
+ * Envia uma nova referência. O limite de 3 é imposto pelo trigger
+ * `checar_limite_referencias` no banco — não confie só na contagem feita
+ * aqui, ela existe para dar uma mensagem mais amigável antes de tentar.
+ */
+export async function enviarReferencia({ profissionalId, nome, telefone }) {
+  const { error } = await supabase
+    .from('referencias_trabalho')
+    .insert({ profissional_id: profissionalId, nome_referencia: nome, telefone })
+  if (error) throw error
+}
+
+/**
+ * Fila de referências pendentes, para o admin aprovar por telefone.
+ * O admin liga para o contato informado e confirma que o trabalho
+ * aconteceu de fato — só então aprova.
+ */
+export async function listarFilaReferencias() {
+  const { data: refs, error } = await supabase
+    .from('referencias_trabalho')
+    .select('id, profissional_id, nome_referencia, telefone, status, created_at')
+    .eq('status', 'pendente')
+    .order('created_at')
+  if (error) throw error
+  if (!refs?.length) return []
+
+  const ids = [...new Set(refs.map((r) => r.profissional_id))]
+  const { data: perfis } = await supabase.from('perfis').select('id, nome').in('id', ids)
+  const nomePorId = Object.fromEntries((perfis ?? []).map((p) => [p.id, p.nome]))
+
+  return refs.map((r) => ({ ...r, profissional_nome: nomePorId[r.profissional_id] ?? '—' }))
+}
+
+/**
+ * Aprova ou rejeita uma referência. O trigger `trg_referencia_muda_selo`
+ * recalcula o selo sozinho no banco — este código não precisa (e não
+ * deve) tentar calcular bronze/prata/ouro aqui: contar linhas certas
+ * depende de enxergar TODAS as referências da profissional, e o admin só
+ * tem a fila de pendentes na tela.
+ */
+export async function decidirReferencia({ referenciaId, status, adminId, observacao }) {
+  const { error } = await supabase
+    .from('referencias_trabalho')
+    .update({
+      status,
+      verificado_por: adminId,
+      verificado_em: new Date().toISOString(),
+      observacao
+    })
+    .eq('id', referenciaId)
+  if (error) throw error
 }
 
 /**
@@ -614,7 +704,7 @@ export async function decidirVerificacao({ verificacaoId, profissionalId, tipo, 
 export async function listarFavoritos(clienteId) {
   const { data, error } = await supabase
     .from('favoritos')
-    .select('profissional_id, profissionais ( id, valor_hora, perfis ( nome ) )')
+    .select('profissional_id, profissionais ( id, valor_meio_turno, perfis ( nome ) )')
     .eq('cliente_id', clienteId)
   if (error) throw error
   return data

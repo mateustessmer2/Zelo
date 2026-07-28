@@ -4,6 +4,7 @@ import { obterProfissional, obterTrustScore, criarBooking } from '../lib/api'
 import { useAuth } from '../hooks/useAuth'
 import TrustScore from '../components/TrustScore'
 import Avaliacoes from '../components/Avaliacoes'
+import SeloReferencias from '../components/SeloReferencias'
 
 export default function PerfilProfissional() {
   const { id } = useParams()
@@ -34,10 +35,11 @@ export default function PerfilProfissional() {
     setContratando(true)
     try {
       const categoriaId = prof.profissional_categorias?.[0]?.categorias?.id
-      // Turno integral é cobrado por diária; meio período, por hora.
+      // Turno integral usa o valor da diária; meio turno usa o valor fixo
+      // de 4h que a profissional definiu — não é mais um cálculo por hora.
       const valor = turnoBusca === 'integral'
-        ? (prof.valor_diaria ?? prof.valor_hora)
-        : (prof.valor_hora ?? prof.valor_diaria)
+        ? (prof.valor_diaria ?? prof.valor_meio_turno)
+        : (prof.valor_meio_turno ?? prof.valor_diaria)
 
       const booking = await criarBooking({
         clienteId: perfil.id,
@@ -72,9 +74,9 @@ export default function PerfilProfissional() {
           <div style={{ fontSize: 14, color: 'var(--muted)', marginTop: 1 }}>
             {prof.idade ? `${prof.idade} anos · ` : ''}{categorias}
           </div>
-          <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', marginTop: 10 }}>
+          <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', alignItems: 'center', marginTop: 10 }}>
             <span className="seal hi">✓ Identidade verificada</span>
-            <span className="seal hi">✓ Antecedentes checados</span>
+            <SeloReferencias selo={prof.selo} />
           </div>
         </div>
       </div>
@@ -103,9 +105,9 @@ export default function PerfilProfissional() {
 
       <div className="card">
         <h3>Atendimento</h3>
-        <Linha k="Bairros" v={bairros || '—'} />
-        <Linha k="Valor por hora" v={prof.valor_hora ? `R$ ${prof.valor_hora}` : '—'} />
-        <Linha k="Valor por diária" v={prof.valor_diaria ? `R$ ${prof.valor_diaria}` : '—'} />
+        <Linha k="Bairros" v={prof.atende_todos_bairros ? 'Atende todos os bairros' : (bairros || '—')} />
+        <Linha k="Meio turno (4h)" v={prof.valor_meio_turno ? `R$ ${prof.valor_meio_turno}` : '—'} />
+        <Linha k="Turno integral (8h)" v={prof.valor_diaria ? `R$ ${prof.valor_diaria}` : '—'} />
       </div>
 
       <Avaliacoes alvoId={prof.id} lado="cliente_avalia_prof" />
@@ -118,8 +120,8 @@ export default function PerfilProfissional() {
         <div>
           <span style={{ fontFamily: "'Fraunces',serif", fontWeight: 600, fontSize: 21, color: 'var(--sage-900)' }}>
             R$ {turnoBusca === 'integral'
-              ? (prof.valor_diaria ?? prof.valor_hora ?? '—')
-              : (prof.valor_hora ?? '—')}
+              ? (prof.valor_diaria ?? prof.valor_meio_turno ?? '—')
+              : (prof.valor_meio_turno ?? prof.valor_diaria ?? '—')}
           </span>
           <span style={{ fontSize: 13, color: 'var(--muted)' }}>
             {turnoBusca === 'integral' ? '/turno integral' : '/hora'}

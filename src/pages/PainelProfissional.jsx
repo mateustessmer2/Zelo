@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 import {
   listarBookingsProfissional, atualizarStatusBooking,
   obterTrustScore, listarVerificacoes, enviarDocumento,
-  listarBookingsAvaliadosPorMim, rotuloTurno
+  listarBookingsAvaliadosPorMim, rotuloTurno,
+  listarReferencias, obterProfissional
 } from '../lib/api'
 import { useAuth } from '../hooks/useAuth'
 import FormAvaliacao from '../components/FormAvaliacao'
@@ -11,6 +12,7 @@ import Chat from '../components/Chat'
 import FeedbackPrivado from '../components/FeedbackPrivado'
 import EditarPerfil from '../components/EditarPerfil'
 import Agenda from '../components/Agenda'
+import Referencias from '../components/Referencias'
 
 const ABAS = [
   { id: 'pedidos', label: 'Pedidos' },
@@ -27,6 +29,8 @@ export default function PainelProfissional() {
   const [bookings, setBookings] = useState(null)
   const [score, setScore] = useState(null)
   const [verificacoes, setVerificacoes] = useState([])
+  const [referencias, setReferencias] = useState([])
+  const [selo, setSelo] = useState(null)
   const [avaliando, setAvaliando] = useState(null)
   const [chatAberto, setChatAberto] = useState(null)
   const [jaAvaliados, setJaAvaliados] = useState(new Set())
@@ -36,6 +40,8 @@ export default function PainelProfissional() {
     carregar()
     obterTrustScore(perfil.id, 'cliente_avalia_prof').then(setScore).catch(() => {})
     listarVerificacoes(perfil.id).then(setVerificacoes).catch(() => {})
+    listarReferencias(perfil.id).then(setReferencias).catch(() => {})
+    obterProfissional(perfil.id).then((p) => setSelo(p?.selo ?? null)).catch(() => {})
     listarBookingsAvaliadosPorMim(perfil.id).then(setJaAvaliados).catch(() => {})
   }, [perfil?.id])
 
@@ -62,7 +68,11 @@ export default function PainelProfissional() {
   const idOk = verificacoes.find((v) => v.tipo === 'identidade')?.status === 'aprovado'
   const antOk = verificacoes.find((v) => v.tipo === 'antecedentes')?.status === 'aprovado'
   const selfieOk = verificacoes.find((v) => v.tipo === 'selfie')?.status === 'aprovado'
-  const noAr = idOk && antOk
+  // Antecedentes temporariamente fora do gate de visibilidade — ver
+  // migração 16. antOk continua calculado (útil se algum dia a fila
+  // de verificação ainda mostrar um item de antecedentes de antes),
+  // mas não decide mais se o perfil entra no ar.
+  const noAr = idOk && selfieOk
 
   return (
     <>
@@ -88,7 +98,7 @@ export default function PainelProfissional() {
                   <circle cx="12" cy="12" r="10" /><path d="M12 8v4M12 16h.01" />
                 </svg>
                 <p><b>Seu perfil ainda não aparece na busca.</b> Conclua a verificação de
-                  identidade e antecedentes para começar a receber pedidos.</p>
+                  identidade e a selfie para começar a receber pedidos.</p>
               </div>
             )}
 
@@ -159,8 +169,21 @@ export default function PainelProfissional() {
         {aba === 'agenda' && <Agenda />}
 
         {aba === 'verificacao' && (
-          <Verificacao perfilId={perfil.id} verificacoes={verificacoes} idOk={idOk} antOk={antOk} noAr={noAr}
-            onEnviado={() => listarVerificacoes(perfil.id).then(setVerificacoes)} />
+          <>
+            <Verificacao perfilId={perfil.id} verificacoes={verificacoes} idOk={idOk} antOk={antOk} selfieOk={selfieOk} noAr={noAr}
+              onEnviado={() => listarVerificacoes(perfil.id).then(setVerificacoes)} />
+            <div style={{ marginTop: 14 }}>
+              <Referencias
+                perfilId={perfil.id}
+                referencias={referencias}
+                selo={selo}
+                onEnviado={() => {
+                  listarReferencias(perfil.id).then(setReferencias)
+                  obterProfissional(perfil.id).then((p) => setSelo(p?.selo ?? null))
+                }}
+              />
+            </div>
+          </>
         )}
 
         {aba === 'ganhos' && (
@@ -245,7 +268,7 @@ export default function PainelProfissional() {
 }
 
 /** Envio de documentos sensíveis — bucket privado, cliente nunca acessa. */
-function Verificacao({ perfilId, verificacoes, idOk, antOk, noAr, onEnviado }) {
+function Verificacao({ perfilId, verificacoes, idOk, antOk, selfieOk, noAr, onEnviado }) {
   const [erro, setErro] = useState(null)
   const [enviando, setEnviando] = useState(null)
 
@@ -282,13 +305,6 @@ function Verificacao({ perfilId, verificacoes, idOk, antOk, noAr, onEnviado }) {
           onArquivo={(f) => subir('identidade', f)}
         />
         <Doc
-          titulo="Certidão de antecedentes criminais"
-          sub="Federal e estadual · PDF"
-          status={statusDe('antecedentes')}
-          enviando={enviando === 'antecedentes'}
-          onArquivo={(f) => subir('antecedentes', f)}
-        />
-        <Doc
           titulo="Selfie"
           sub="Foto do seu rosto, sem óculos escuros ou boné · confere com o documento"
           status={statusDe('selfie')}
@@ -315,12 +331,11 @@ function Verificacao({ perfilId, verificacoes, idOk, antOk, noAr, onEnviado }) {
         </svg>
         <p style={noAr ? { color: 'var(--green)' } : {}}>
           {noAr
-            ? <><b>Perfil no ar.</b> Identidade, antecedentes e selfie aprovados — você já aparece na busca dos clientes.</>
+            ? <><b>Perfil no ar.</b> Identidade e selfie aprovadas — você já aparece na busca dos clientes.</>
             : <><b>Perfil ainda não visível.</b> Faltam: {[
                 !idOk && 'identidade',
-                !antOk && 'antecedentes',
                 !selfieOk && 'selfie'
-              ].filter(Boolean).join(', ')}. Assim que os três forem aprovados, seu perfil entra
+              ].filter(Boolean).join(', ')}. Assim que forem aprovadas, seu perfil entra
               no ar automaticamente.</>}
         </p>
       </div>

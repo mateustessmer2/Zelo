@@ -1,9 +1,15 @@
 import { useEffect, useState } from 'react'
 import { useSearchParams, useNavigate, Link } from 'react-router-dom'
-import { listarCidadesAtivas, listarBairros, buscarProfissionais } from '../lib/api'
+import { listarCidadesAtivas, listarBairros, listarCategoriasAtivas, buscarProfissionais } from '../lib/api'
+import SeloReferencias from '../components/SeloReferencias'
 
 /**
- * Fluxo do cliente: bairro → data → turno → observação → resultados.
+ * Fluxo do cliente: categoria → bairro → data → turno → observação → resultados.
+ *
+ * Antes, a categoria vinha escolhida na home (que tinha os três cartões de
+ * serviço). Com a home reduzida a login/cadastro, essa escolha migrou para
+ * cá — a busca aceita chegar tanto com `?categoria=` na URL (link antigo)
+ * quanto sem nada, oferecendo a escolha na própria tela.
  *
  * Mostra poucas opções compatíveis, não uma lista infinita. A busca não
  * precisa filtrar por verificação: a policy `prof_select_visiveis` já
@@ -12,8 +18,10 @@ import { listarCidadesAtivas, listarBairros, buscarProfissionais } from '../lib/
 export default function Busca() {
   const [params] = useSearchParams()
   const navigate = useNavigate()
-  const categoriaId = params.get('categoria')
-  const categoriaNome = params.get('nome') || 'Profissionais'
+
+  const [categorias, setCategorias] = useState([])
+  const [categoriaId, setCategoriaId] = useState(params.get('categoria') || '')
+  const categoriaNome = categorias.find((c) => c.id === categoriaId)?.nome || 'Profissionais'
 
   const [bairros, setBairros] = useState([])
   const [bairroId, setBairroId] = useState('')
@@ -26,6 +34,7 @@ export default function Busca() {
   const [erro, setErro] = useState(null)
 
   useEffect(() => {
+    listarCategoriasAtivas().then(setCategorias).catch(() => setCategorias([]))
     listarCidadesAtivas()
       .then(async (cidades) => {
         if (!cidades.length) return
@@ -40,11 +49,13 @@ export default function Busca() {
     setErro(null)
     try {
       const rs = await buscarProfissionais({
-        categoriaId, bairroId: bairroId || null, turno: turno || null
+        categoriaId: categoriaId || null, bairroId: bairroId || null, turno: turno || null
       })
       setResultados(rs)
-    } catch {
-      setErro('Não foi possível buscar agora. Tente novamente.')
+    } catch (err) {
+      // Mostra a causa real. O `[etapa]` no início diz qual consulta falhou —
+      // sem isso, qualquer problema virava a mesma mensagem genérica.
+      setErro(err?.message ?? 'Não foi possível buscar agora. Tente novamente.')
     } finally {
       setBuscando(false)
     }
@@ -76,9 +87,12 @@ export default function Busca() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                   <span style={{ fontWeight: 600, fontSize: 16, color: 'var(--sage-900)' }}>{p.perfis?.nome}</span>
                   <span className="seal hi">✓ Verificada</span>
+                  <SeloReferencias selo={p.selo} tamanho="pequeno" />
                 </div>
                 <div style={{ fontSize: 13, color: 'var(--muted)', marginTop: 3 }}>
-                  {p.profissional_bairros?.map((b) => b.bairros?.nome).filter(Boolean).join(', ')}
+                  {p.atende_todos_bairros
+                    ? 'Atende todos os bairros'
+                    : p.profissional_bairros?.map((b) => b.bairros?.nome).filter(Boolean).join(', ')}
                 </div>
                 {p.tempo_resposta_min && (
                   <div style={{ fontSize: 12.5, color: 'var(--sage-700)', marginTop: 8 }}>
@@ -87,12 +101,14 @@ export default function Busca() {
                 )}
               </div>
               <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                {p.valor_hora && (
+                {(turno === 'integral' ? p.valor_diaria : p.valor_meio_turno) && (
                   <div>
                     <span style={{ fontFamily: "'Fraunces',serif", fontWeight: 600, fontSize: 19, color: 'var(--sage-900)' }}>
-                      R$ {p.valor_hora}
+                      R$ {turno === 'integral' ? p.valor_diaria : p.valor_meio_turno}
                     </span>
-                    <span style={{ fontSize: 12, color: 'var(--muted)' }}>/hora</span>
+                    <span style={{ fontSize: 12, color: 'var(--muted)' }}>
+                      {turno === 'integral' ? '/turno integral' : '/meio turno'}
+                    </span>
                   </div>
                 )}
                 <Link
@@ -117,6 +133,20 @@ export default function Busca() {
       </p>
 
       {erro && <div className="erro">{erro}</div>}
+
+      <div className="field">
+        <label>Que tipo de serviço?</label>
+        <div className="chips">
+          {categorias.map((c) => (
+            <button
+              key={c.id}
+              type="button"
+              className={`chip ${categoriaId === c.id ? 'on' : ''}`}
+              onClick={() => setCategoriaId(categoriaId === c.id ? '' : c.id)}
+            >{c.icone} {c.nome}</button>
+          ))}
+        </div>
+      </div>
 
       <div className="field">
         <label htmlFor="bairro">Em qual bairro?</label>

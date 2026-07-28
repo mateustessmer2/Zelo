@@ -186,7 +186,7 @@ export default function Cadastro() {
             </svg>
             <p>
               <b>Próximo passo: verificação.</b> Depois do cadastro você envia documento de
-              identidade, certidão de antecedentes e uma selfie. Seu perfil entra na busca automaticamente
+              identidade e uma selfie. Seu perfil entra na busca automaticamente
               assim que os três forem aprovados. Seus documentos ficam privados — clientes veem
               apenas o selo de verificada.
             </p>

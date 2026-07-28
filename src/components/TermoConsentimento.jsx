@@ -18,8 +18,8 @@ export default function TermoConsentimento({ aceito, onChange }) {
     <div className="card" style={{ marginTop: 18 }}>
       <h3 style={{ marginBottom: 6 }}>Verificação de identidade</h3>
       <p style={{ fontSize: 13.5, color: 'var(--muted)', marginBottom: 12 }}>
-        Para aparecer na busca, você envia uma selfie e a certidão de antecedentes.
-        Os dois são usados só para conferência e apagados depois.
+        Para aparecer na busca, você envia uma selfie. Ela é usada só para
+        conferência e apagada depois.
       </p>
 
       <button
