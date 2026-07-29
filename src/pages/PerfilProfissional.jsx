@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
-import { obterProfissional, obterTrustScore, criarBooking } from '../lib/api'
+import { obterProfissional, obterTrustScore, criarBooking, obterWhatsappParaContratacao } from '../lib/api'
 import { useAuth } from '../hooks/useAuth'
 import TrustScore from '../components/TrustScore'
 import Avaliacoes from '../components/Avaliacoes'
@@ -51,6 +51,29 @@ export default function PerfilProfissional() {
         observacao: '',
         valorCombinado: valor
       })
+
+      // WhatsApp abre na hora — decisão explícita de dar agilidade ao
+      // primeiro contato, sem esperar a profissional aceitar o pedido no
+      // painel dela. Se ela não tiver WhatsApp cadastrado, o cliente
+      // segue para o painel normalmente; o pedido já existe de qualquer
+      // forma, e ela vê lá.
+      try {
+        const whatsapp = await obterWhatsappParaContratacao(booking.id)
+        if (whatsapp) {
+          const digitos = whatsapp.replace(/\D/g, '')
+          const numero = digitos.startsWith('55') ? digitos : `55${digitos}`
+          const texto = encodeURIComponent(
+            `Olá! Acabei de solicitar ${categorias || 'um serviço'} pelo Zelo para ${
+              dataBusca ? new Date(`${dataBusca}T12:00:00`).toLocaleDateString('pt-BR') : 'em breve'
+            }. Podemos combinar os detalhes?`
+          )
+          window.open(`https://wa.me/${numero}?text=${texto}`, '_blank', 'noopener')
+        }
+      } catch {
+        // Sem WhatsApp cadastrado ou falha ao buscar: não impede a
+        // contratação, que já foi registrada — só não abre o wa.me.
+      }
+
       navigate(`/painel?booking=${booking.id}`)
     } catch {
       setErro('Não foi possível criar a contratação.')
@@ -75,7 +98,7 @@ export default function PerfilProfissional() {
             {prof.idade ? `${prof.idade} anos · ` : ''}{categorias}
           </div>
           <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', alignItems: 'center', marginTop: 10 }}>
-            <span className="seal hi">✓ Identidade verificada</span>
+            <span className="seal hi">✓ Identidade confirmada</span>
             <SeloReferencias selo={prof.selo} />
           </div>
         </div>

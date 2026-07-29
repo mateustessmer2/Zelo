@@ -5,7 +5,7 @@ const CORES = {
 }
 
 /**
- * Selo de referências verificadas: bronze (1), prata (2) ou ouro (3).
+ * Selo de referências de trabalho: bronze (1), prata (2) ou ouro (3).
  * `selo` vem direto da coluna `profissionais.selo`, calculada no banco —
  * este componente só decide a aparência, nunca a regra de quando aparece.
  */

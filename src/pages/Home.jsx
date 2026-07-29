@@ -30,7 +30,7 @@ export default function Home() {
         />
 
         <p className="lead" style={{ maxWidth: 360, marginBottom: 36 }}>
-          Faxineiras, babás e cuidadoras de idosos verificadas para cuidar
+          Faxineiras, babás e cuidadoras de idosos para cuidar
           da sua casa e da sua família.
         </p>
 

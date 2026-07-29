@@ -22,14 +22,16 @@ export default function EditarPerfil({ onSalvo }) {
   const [idade, setIdade] = useState('')
   const [experiencia, setExperiencia] = useState('')
   const [especialidades, setEspecialidades] = useState('')
-  const [valorHora, setValorHora] = useState('')
+  const [valorMeioTurno, setValorMeioTurno] = useState('')
   const [valorDiaria, setValorDiaria] = useState('')
   const [telefone, setTelefone] = useState('')
+  const [whatsapp, setWhatsapp] = useState('')
 
   const [categorias, setCategorias] = useState([])
   const [catSel, setCatSel] = useState([])
   const [bairros, setBairros] = useState([])
   const [bairroSel, setBairroSel] = useState([])
+  const [atendeTodos, setAtendeTodos] = useState(false)
 
   const [carregando, setCarregando] = useState(true)
   const [salvando, setSalvando] = useState(false)
@@ -59,13 +61,15 @@ export default function EditarPerfil({ onSalvo }) {
         setIdade(prof.idade ?? '')
         setExperiencia(prof.experiencia ?? '')
         setEspecialidades((prof.especialidades ?? []).join(', '))
-        setValorHora(prof.valor_hora ?? '')
+        setValorMeioTurno(prof.valor_meio_turno ?? '')
         setValorDiaria(prof.valor_diaria ?? '')
+        setAtendeTodos(!!prof.atende_todos_bairros)
       } else {
         setNome(perfil.nome ?? '')
       }
 
       setTelefone(contato?.telefone ?? '')
+      setWhatsapp(contato?.whatsapp ?? '')
       setCatSel(sel.categoriaIds)
       setBairroSel(sel.bairroIds)
       setCategorias(cats)
@@ -104,16 +108,22 @@ export default function EditarPerfil({ onSalvo }) {
         especialidades: especialidades
           ? especialidades.split(',').map((s) => s.trim()).filter(Boolean)
           : [],
-        valor_hora: valorHora ? Number(valorHora) : null,
-        valor_diaria: valorDiaria ? Number(valorDiaria) : null
+        valor_meio_turno: valorMeioTurno ? Number(valorMeioTurno) : null,
+        valor_diaria: valorDiaria ? Number(valorDiaria) : null,
+        atende_todos_bairros: atendeTodos
       })
       await definirCategorias(perfil.id, catSel)
+      // Bairros marcados individualmente só importam quando "atende todos"
+      // está desligado — mas gravamos do jeito que estiver na tela, sem
+      // apagar o histórico de bairros caso ela desmarque depois.
       await definirBairros(perfil.id, bairroSel)
-      if (telefone) await salvarContato(perfil.id, { telefone })
+      if (telefone || whatsapp) await salvarContato(perfil.id, { telefone, whatsapp })
       setOk(true)
       onSalvo?.()
-    } catch {
-      setErro('Não foi possível salvar. Tente novamente.')
+    } catch (err) {
+      // Mensagem real em vez de genérica — sem console à mão, este texto é
+      // a única pista de qual coluna ou permissão falhou.
+      setErro(err?.message ?? 'Não foi possível salvar. Tente novamente.')
     } finally {
       setSalvando(false)
     }
@@ -155,6 +165,13 @@ export default function EditarPerfil({ onSalvo }) {
           </div>
         </div>
         <div className="field">
+          <label htmlFor="whats">WhatsApp</label>
+          <input id="whats" value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} placeholder="(53) 9 0000-0000" />
+          <p style={{ fontSize: 12, color: 'var(--muted)', marginTop: 6 }}>
+            O cliente é direcionado para esse número assim que solicita um serviço com você.
+          </p>
+        </div>
+        <div className="field">
           <label htmlFor="desc">Uma frase sobre você</label>
           <textarea
             id="desc" rows="3" value={descricao} onChange={(e) => setDescricao(e.target.value)}
@@ -193,7 +210,12 @@ export default function EditarPerfil({ onSalvo }) {
       <div className="card">
         <h3>Bairros que você atende</h3>
         <div className="chips">
-          {bairros.map((b) => (
+          <button
+            type="button"
+            className={`chip ${atendeTodos ? 'on' : ''}`}
+            onClick={() => setAtendeTodos(!atendeTodos)}
+          >TODOS</button>
+          {!atendeTodos && bairros.map((b) => (
             <button
               key={b.id} type="button"
               className={`chip ${bairroSel.includes(b.id) ? 'on' : ''}`}
@@ -201,17 +223,22 @@ export default function EditarPerfil({ onSalvo }) {
             >{b.nome}</button>
           ))}
         </div>
+        {atendeTodos && (
+          <p style={{ fontSize: 12.5, color: 'var(--muted)', marginTop: 10 }}>
+            Você vai aparecer em buscas de qualquer bairro. Toque em "TODOS" de novo para escolher bairros específicos.
+          </p>
+        )}
       </div>
 
       <div className="card">
         <h3>Seus valores</h3>
         <div className="row">
           <div className="field">
-            <label htmlFor="vh">Valor por hora (R$)</label>
-            <input id="vh" type="number" step="0.01" value={valorHora} onChange={(e) => setValorHora(e.target.value)} />
+            <label htmlFor="vh">Meio turno — 4h (R$)</label>
+            <input id="vh" type="number" step="0.01" value={valorMeioTurno} onChange={(e) => setValorMeioTurno(e.target.value)} />
           </div>
           <div className="field">
-            <label htmlFor="vd">Valor por diária (R$)</label>
+            <label htmlFor="vd">Turno integral — 8h (R$)</label>
             <input id="vd" type="number" step="0.01" value={valorDiaria} onChange={(e) => setValorDiaria(e.target.value)} />
           </div>
         </div>

@@ -319,7 +319,7 @@ function Verificacao({ perfilId, verificacoes, idOk, antOk, selfieOk, noAr, onEn
           </svg>
           <p><b>Seus documentos e a selfie ficam privados.</b> Nenhum cliente tem acesso a eles —
             a selfie serve só para conferirmos que o documento é seu. O que aparece no seu perfil
-            é apenas um selo de "verificada".</p>
+            é apenas um selo de identidade confirmada.</p>
         </div>
       </div>
 

@@ -38,6 +38,7 @@ export default function Cadastro() {
   const [erro, setErro] = useState(null)
   const [enviando, setEnviando] = useState(false)
   const [aceitouTermo, setAceitouTermo] = useState(false)
+  const [sucesso, setSucesso] = useState(false)
 
   useEffect(() => {
     listarCidadesAtivas().then((cs) => {
@@ -63,10 +64,21 @@ export default function Cadastro() {
           ? { aceito: aceitouTermo, versao: VERSAO_TERMO }
           : null
       })
-      navigate(role === 'profissional' ? '/painel-profissional' : '/painel')
+
+      // Confirma antes de sair da tela. Sem isso a pessoa era jogada no
+      // painel sem saber se deu certo — e depois do bug de corrida no
+      // perfil, essa confirmação explícita ajuda a distinguir "deu certo"
+      // de "algo travou".
+      setSucesso(true)
+      setTimeout(() => {
+        navigate(role === 'profissional' ? '/painel-profissional' : '/painel')
+      }, 1200)
     } catch (err) {
-      setErro(err?.message ?? 'Não foi possível criar a conta.')
-    } finally {
+      if (err?.code === 'EMAIL_JA_CADASTRADO') {
+        setErro('E-mail já cadastrado — escolha outro e-mail ou recupere sua senha.')
+      } else {
+        setErro(err?.message ?? 'Não foi possível criar a conta.')
+      }
       setEnviando(false)
     }
   }
@@ -94,7 +106,7 @@ export default function Cadastro() {
               Preciso contratar
             </div>
             <div style={{ fontSize: 14, color: 'var(--muted)' }}>
-              Encontrar faxineira, babá ou cuidadora verificada perto de você.
+              Encontrar faxineira, babá ou cuidadora perto de você.
             </div>
           </button>
 
@@ -139,6 +151,14 @@ export default function Cadastro() {
 
       <form onSubmit={submeter}>
         {erro && <div className="erro">{erro}</div>}
+        {sucesso && (
+          <div style={{
+            background: '#E8F2EA', color: 'var(--green)', fontWeight: 600,
+            padding: '12px 14px', borderRadius: 10, marginBottom: 14, fontSize: 14.5
+          }}>
+            ✓ Cadastro realizado com sucesso
+          </div>
+        )}
 
         <div className="field">
           <label htmlFor="nome">Nome completo</label>
@@ -188,7 +208,7 @@ export default function Cadastro() {
               <b>Próximo passo: verificação.</b> Depois do cadastro você envia documento de
               identidade e uma selfie. Seu perfil entra na busca automaticamente
               assim que os três forem aprovados. Seus documentos ficam privados — clientes veem
-              apenas o selo de verificada.
+              apenas o selo de identidade confirmada.
             </p>
           </div>
         )}
@@ -196,10 +216,10 @@ export default function Cadastro() {
         <button
           className="btn full"
           type="submit"
-          disabled={enviando || (role === 'profissional' && !aceitouTermo)}
+          disabled={enviando || sucesso || (role === 'profissional' && !aceitouTermo)}
           style={{ marginTop: 18 }}
         >
-          {enviando ? 'Criando conta…' : 'Criar conta'}
+          {sucesso ? 'Entrando…' : enviando ? 'Criando conta…' : 'Criar conta'}
         </button>
       </form>
 

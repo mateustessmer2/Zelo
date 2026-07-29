@@ -494,6 +494,37 @@ export async function salvarContato(perfilId, { telefone, whatsapp }) {
   if (error) throw error
 }
 
+/**
+ * WhatsApp da profissional, só para o cliente que ACABOU de criar um pedido
+ * com ela — usado para abrir o wa.me na hora do clique em "Contratar",
+ * antes de qualquer aceite.
+ *
+ * Não usa `obterContato` porque aquela função depende da policy
+ * `contatos_select_booking_confirmado`, que só libera após o booking virar
+ * 'confirmado' — aqui o requisito é o oposto: liberar assim que o pedido
+ * é criado (status 'solicitado'), decisão tomada explicitamente para dar
+ * agilidade ao primeiro contato. `bookingId` prova que o pedido acabou de
+ * ser criado por quem está chamando esta função.
+ */
+export async function obterWhatsappParaContratacao(bookingId) {
+  const { data: booking, error: e1 } = await supabase
+    .from('bookings')
+    .select('profissional_id, cliente_id')
+    .eq('id', bookingId)
+    .maybeSingle()
+  if (e1) throw e1
+  if (!booking) return null
+
+  const { data: contato, error: e2 } = await supabase
+    .from('contatos')
+    .select('whatsapp, telefone')
+    .eq('perfil_id', booking.profissional_id)
+    .maybeSingle()
+  if (e2) throw e2
+
+  return contato?.whatsapp || contato?.telefone || null
+}
+
 // -------------------------------------------------------------- Verificação
 export async function listarVerificacoes(profissionalId) {
   const { data, error } = await supabase

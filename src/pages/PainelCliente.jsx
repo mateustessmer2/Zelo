@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import {
   listarBookingsCliente, atualizarStatusBooking, obterTrustScore,
   listarBookingsAvaliadosPorMim, rotuloTurno
@@ -51,12 +52,15 @@ export default function PainelCliente() {
   return (
     <>
       <div className="wrap">
-        <div className="subnav">
-          {ABAS.map((a) => (
-            <button key={a.id} className={`snav ${aba === a.id ? 'on' : ''}`} onClick={() => setAba(a.id)}>
-              {a.label}
-            </button>
-          ))}
+        <div className="subnav" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 14, rowGap: 10 }}>
+          <div style={{ display: 'flex', gap: 22 }}>
+            {ABAS.map((a) => (
+              <button key={a.id} className={`snav ${aba === a.id ? 'on' : ''}`} onClick={() => setAba(a.id)}>
+                {a.label}
+              </button>
+            ))}
+          </div>
+          <Link to="/buscar" className="btn sm" style={{ margin: '10px 0' }}>Encontrar profissionais</Link>
         </div>
       </div>
 
@@ -66,7 +70,14 @@ export default function PainelCliente() {
             <h2>Suas contratações</h2>
             <p className="lead" style={{ marginBottom: 22 }}>Serviços agendados e pedidos aguardando resposta.</p>
 
-            {ativos.length === 0 && <div className="empty">Nenhuma contratação ativa.</div>}
+            {ativos.length === 0 && (
+              <div className="empty" style={{ padding: '36px 20px' }}>
+                <p style={{ marginBottom: 18 }}>Nenhuma contratação ativa.</p>
+                <Link to="/buscar" className="btn" style={{ display: 'inline-block' }}>
+                  Encontrar profissionais
+                </Link>
+              </div>
+            )}
 
             {ativos.map((b) => (
               <div key={b.id} className="card">

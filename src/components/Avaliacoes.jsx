@@ -49,7 +49,7 @@ export default function Avaliacoes({ alvoId, lado }) {
             <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 6 }}>
               <span className="stars">{'★'.repeat(a.nota)}{'☆'.repeat(5 - a.nota)}</span>
               <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--sage-900)' }}>
-                {lado === 'cliente_avalia_prof' ? 'Cliente verificado' : 'Profissional verificada'}
+                {lado === 'cliente_avalia_prof' ? 'Cliente' : 'Profissional'}
               </span>
             </div>
             {a.comentario && <p style={{ fontSize: 14, lineHeight: 1.55 }}>{a.comentario}</p>}

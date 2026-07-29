@@ -12,6 +12,8 @@ const Busca = lazy(() => import('./pages/Busca'))
 const PerfilProfissional = lazy(() => import('./pages/PerfilProfissional'))
 const Login = lazy(() => import('./pages/Login'))
 const Cadastro = lazy(() => import('./pages/Cadastro'))
+const RecuperarSenha = lazy(() => import('./pages/RecuperarSenha'))
+const NovaSenha = lazy(() => import('./pages/NovaSenha'))
 const PainelCliente = lazy(() => import('./pages/PainelCliente'))
 const PainelProfissional = lazy(() => import('./pages/PainelProfissional'))
 const PainelAdmin = lazy(() => import('./pages/PainelAdmin'))
@@ -57,10 +59,12 @@ export default function App() {
       <Suspense fallback={<div className="loading">Carregando…</div>}>
         <Routes>
           <Route path="/" element={<Home />} />
-          <Route path="/buscar" element={<Busca />} />
-          <Route path="/profissional/:id" element={<PerfilProfissional />} />
+          <Route path="/buscar" element={<Protegida><Busca /></Protegida>} />
+          <Route path="/profissional/:id" element={<Protegida><PerfilProfissional /></Protegida>} />
           <Route path="/entrar" element={<Login />} />
           <Route path="/cadastrar" element={<Cadastro />} />
+          <Route path="/recuperar-senha" element={<RecuperarSenha />} />
+          <Route path="/nova-senha" element={<NovaSenha />} />
           <Route path="/painel" element={<Protegida papel="cliente"><PainelCliente /></Protegida>} />
           <Route path="/painel-profissional" element={<Protegida papel="profissional"><PainelProfissional /></Protegida>} />
           <Route path="/admin" element={<Protegida papel="admin"><PainelAdmin /></Protegida>} />

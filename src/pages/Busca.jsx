@@ -76,7 +76,7 @@ export default function Busca() {
 
         {resultados.length === 0 ? (
           <div className="empty">
-            Ainda não temos profissionais verificadas para essa combinação.
+            Ainda não temos profissionais disponíveis para essa combinação.
             <br />Tente outro bairro ou outra data.
           </div>
         ) : (
@@ -86,7 +86,7 @@ export default function Busca() {
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                   <span style={{ fontWeight: 600, fontSize: 16, color: 'var(--sage-900)' }}>{p.perfis?.nome}</span>
-                  <span className="seal hi">✓ Verificada</span>
+                  <span className="seal hi">✓ Identidade confirmada</span>
                   <SeloReferencias selo={p.selo} tamanho="pequeno" />
                 </div>
                 <div style={{ fontSize: 13, color: 'var(--muted)', marginTop: 3 }}>
