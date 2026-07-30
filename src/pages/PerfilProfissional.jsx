@@ -5,6 +5,8 @@ import { useAuth } from '../hooks/useAuth'
 import TrustScore from '../components/TrustScore'
 import Avaliacoes from '../components/Avaliacoes'
 import SeloReferencias from '../components/SeloReferencias'
+import AvisoIntermediacao from '../components/AvisoIntermediacao'
+import SeloVerificacao from '../components/SeloVerificacao'
 
 export default function PerfilProfissional() {
   const { id } = useParams()
@@ -98,9 +100,15 @@ export default function PerfilProfissional() {
             {prof.idade ? `${prof.idade} anos · ` : ''}{categorias}
           </div>
           <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', alignItems: 'center', marginTop: 10 }}>
-            <span className="seal hi">✓ Identidade confirmada</span>
+            <SeloVerificacao data={prof.identidade_verificada_em} />
             <SeloReferencias selo={prof.selo} />
           </div>
+          {prof.selo && (
+            <p style={{ fontSize: 12, color: 'var(--muted)', marginTop: 6, maxWidth: 380 }}>
+              O Zelo facilita o acesso às referências informadas pela profissional.
+              A conferência é de responsabilidade de quem contrata.
+            </p>
+          )}
         </div>
       </div>
 
@@ -131,7 +139,22 @@ export default function PerfilProfissional() {
         <Linha k="Bairros" v={prof.atende_todos_bairros ? 'Atende todos os bairros' : (bairros || '—')} />
         <Linha k="Meio turno (4h)" v={prof.valor_meio_turno ? `R$ ${prof.valor_meio_turno}` : '—'} />
         <Linha k="Turno integral (8h)" v={prof.valor_diaria ? `R$ ${prof.valor_diaria}` : '—'} />
+        {prof.valor_km && <Linha k="Valor por km rodado" v={`R$ ${prof.valor_km}`} />}
       </div>
+
+      {(prof.servicos?.length > 0 || prof.servico_outro) && (
+        <div className="card">
+          <h3>Serviços oferecidos</h3>
+          <div className="chips">
+            {prof.servicos?.map((s) => (
+              <span key={s.id} className="chip" style={{ cursor: 'default' }}>{s.nome}</span>
+            ))}
+            {prof.servico_outro && (
+              <span className="chip" style={{ cursor: 'default' }}>{prof.servico_outro}</span>
+            )}
+          </div>
+        </div>
+      )}
 
       <Avaliacoes alvoId={prof.id} lado="cliente_avalia_prof" />
 
@@ -157,6 +180,8 @@ export default function PerfilProfissional() {
           </button>
         </div>
       </div>
+
+      <AvisoIntermediacao />
     </main>
   )
 }

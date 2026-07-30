@@ -1,25 +1,35 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 
-/** Versão do texto abaixo. Ao alterar qualquer palavra do termo, suba isto —
- *  é o que liga a prova de consentimento ao texto que a pessoa realmente leu. */
-export const VERSAO_TERMO = '2026-07-27'
+/** Versão do texto abaixo — suba ao alterar qualquer palavra do termo.
+ *  É o que liga a prova de consentimento ao texto que a pessoa leu. */
+export const VERSAO_TERMO = '2026-07-30'
 
 /**
- * Termo de Consentimento para Verificação de Identidade.
+ * Termo de Consentimento e Ciência do Usuário.
  *
- * Começa recolhido: a tela de cadastro já é longa, e um bloco de texto
- * jurídico aberto por padrão faz a pessoa rolar sem ler. O aceite exige
- * clique explícito no checkbox — nunca vem marcado.
+ * Diferente da versão anterior (que era específica sobre a coleta de
+ * selfie), este texto cobre TODO usuário — cliente e profissional:
+ * consentimento LGPD para tratamento de dados, ciência de que o Zelo é
+ * apenas intermediador, e responsabilidade de quem contrata pela própria
+ * escolha.
+ *
+ * O consentimento ESPECÍFICO para selfie e antecedentes (dado sensível,
+ * art. 11 da LGPD) não vive mais aqui — ele passou para o momento do
+ * upload, que é onde a coleta de fato acontece. Ver o aviso no
+ * componente de Verificação.
+ *
+ * Recolhido por padrão: texto jurídico aberto faz a pessoa rolar sem ler.
+ * O aceite exige clique explícito no checkbox — nunca vem marcado.
  */
 export default function TermoConsentimento({ aceito, onChange }) {
   const [aberto, setAberto] = useState(false)
 
   return (
     <div className="card" style={{ marginTop: 18 }}>
-      <h3 style={{ marginBottom: 6 }}>Verificação de identidade</h3>
+      <h3 style={{ marginBottom: 6 }}>Termo de Consentimento e Ciência do Usuário</h3>
       <p style={{ fontSize: 13.5, color: 'var(--muted)', marginBottom: 12 }}>
-        Para aparecer na busca, você envia uma selfie. Ela é usada só para
-        conferência e apagada depois.
+        Como tratamos seus dados e qual é o papel do Zelo.
       </p>
 
       <button
@@ -36,95 +46,71 @@ export default function TermoConsentimento({ aceito, onChange }) {
 
       {aberto && (
         <div style={{
-          maxHeight: 280, overflowY: 'auto', fontSize: 13, lineHeight: 1.6,
+          maxHeight: 300, overflowY: 'auto', fontSize: 13, lineHeight: 1.6,
           color: 'var(--ink)', background: 'var(--paper)', padding: '14px 15px',
           borderRadius: 10, border: '1px solid var(--line)', marginBottom: 14
         }}>
-          <p style={{ fontWeight: 700, marginBottom: 10 }}>
-            Termo de Consentimento para Verificação de Identidade
-          </p>
           <p style={{ marginBottom: 12 }}>
-            Ao prosseguir com o cadastro, declaro que li e concordo com os termos abaixo.
+            Ao concluir meu cadastro no Zelo, declaro que li, compreendi e
+            concordo com os termos abaixo:
           </p>
 
-          <p style={{ fontWeight: 600, marginBottom: 4 }}>1. Finalidade da coleta</p>
-          <p style={{ marginBottom: 6 }}>
-            Para aumentar a segurança e a confiança entre os usuários da plataforma,
-            autorizo o envio dos seguintes documentos:
-          </p>
-          <ul style={{ margin: '0 0 10px 18px' }}>
-            <li>Fotografia tipo selfie;</li>
-            <li>Certidão de Antecedentes Criminais emitida pelos órgãos competentes.</li>
-          </ul>
-          <p style={{ marginBottom: 12 }}>
-            Esses documentos serão utilizados exclusivamente para conferência da identidade
-            do usuário e validação do cadastro, não sendo utilizados para qualquer outra
-            finalidade.
+          <p style={{ marginBottom: 10 }}>
+            <b>1.</b> Autorizo o tratamento dos meus dados pessoais pelo Zelo
+            para criação e manutenção da minha conta, disponibilização dos
+            serviços da plataforma, comunicação, suporte e cumprimento de
+            obrigações legais, em conformidade com a Lei Geral de Proteção de
+            Dados (Lei nº 13.709/2018 – LGPD).
           </p>
 
-          <p style={{ fontWeight: 600, marginBottom: 4 }}>2. Tratamento dos documentos</p>
-          <p style={{ marginBottom: 6 }}>
-            A plataforma realizará apenas a conferência dos documentos enviados, a fim de
-            verificar a identidade do usuário e a autenticidade das informações fornecidas.
-          </p>
-          <p style={{ marginBottom: 6 }}>
-            Após a conclusão da conferência e validação do cadastro, a selfie e a Certidão
-            de Antecedentes Criminais serão permanentemente excluídas de nossos sistemas,
-            não permanecendo armazenadas, arquivadas ou sob a posse da plataforma.
-          </p>
-          <p style={{ marginBottom: 12 }}>
-            A plataforma manterá apenas a informação de que o cadastro foi validado, sem
-            conservar cópias dos documentos utilizados na verificação.
+          <p style={{ marginBottom: 10 }}>
+            <b>2.</b> Estou ciente de que o Zelo atua exclusivamente como
+            plataforma de intermediação entre clientes e profissionais
+            autônomos, não sendo empregador, prestador dos serviços
+            contratados ou responsável pela execução, qualidade, pontualidade
+            ou resultados dos serviços oferecidos.
           </p>
 
-          <p style={{ fontWeight: 600, marginBottom: 4 }}>3. Base legal</p>
-          <p style={{ marginBottom: 12 }}>
-            O tratamento dos documentos será realizado com base no consentimento do usuário,
-            nos termos do artigo 7º, inciso I, da Lei nº 13.709/2018 (Lei Geral de Proteção
-            de Dados – LGPD).
+          <p style={{ marginBottom: 10 }}>
+            <b>3.</b> Compreendo que as informações disponibilizadas pelos
+            profissionais em seus perfis são de responsabilidade exclusiva de
+            seus respectivos titulares.
           </p>
 
-          <p style={{ fontWeight: 600, marginBottom: 4 }}>4. Compartilhamento</p>
-          <p style={{ marginBottom: 6 }}>
-            Os documentos não serão compartilhados com outros usuários.
-          </p>
-          <p style={{ marginBottom: 12 }}>
-            Caso seja necessária a utilização de serviços tecnológicos para a conferência
-            da identidade ou armazenamento temporário durante o processo de validação, tais
-            prestadores estarão sujeitos a obrigações de confidencialidade e proteção de
-            dados, utilizando os documentos exclusivamente para essa finalidade.
+          <p style={{ marginBottom: 10 }}>
+            <b>4.</b> Quando informado no perfil do profissional que houve
+            conferência documental realizada pelo Zelo, estou ciente de que
+            essa verificação se refere exclusivamente aos documentos
+            apresentados no momento da análise, não representando garantia
+            permanente sobre a conduta, idoneidade ou situação futura do
+            profissional.
           </p>
 
-          <p style={{ fontWeight: 600, marginBottom: 4 }}>5. Segurança</p>
-          <p style={{ marginBottom: 12 }}>
-            Durante o período estritamente necessário à conferência, a plataforma adotará
-            medidas técnicas e administrativas adequadas para proteger os documentos contra
-            acesso não autorizado, perda, alteração ou divulgação indevida.
+          <p style={{ marginBottom: 10 }}>
+            <b>5.</b> Estou ciente de que a contratação do profissional é
+            realizada por minha livre escolha, sendo minha responsabilidade
+            avaliar as informações disponíveis, as avaliações de outros
+            usuários e demais elementos que considerar relevantes antes da
+            contratação.
           </p>
 
-          <p style={{ fontWeight: 600, marginBottom: 4 }}>6. Direitos do usuário</p>
-          <p style={{ marginBottom: 12 }}>
-            O usuário poderá, a qualquer momento, exercer os direitos previstos na LGPD,
-            incluindo solicitar informações sobre o tratamento realizado, revogar o
-            consentimento e esclarecer dúvidas sobre o processo de validação.
+          <p style={{ marginBottom: 10 }}>
+            <b>6.</b> Declaro que as informações fornecidas por mim durante o
+            cadastro são verdadeiras, completas e atualizadas,
+            comprometendo-me a mantê-las corretas.
           </p>
 
-          <p style={{ fontWeight: 600, marginBottom: 4 }}>7. Declaração de consentimento</p>
-          <p style={{ marginBottom: 6 }}>Declaro que:</p>
-          <ul style={{ margin: '0 0 10px 18px' }}>
-            <li>os documentos enviados são verdadeiros e pertencem a mim;</li>
-            <li>autorizo sua utilização exclusivamente para validação do meu cadastro;</li>
-            <li>
-              estou ciente de que a selfie e a Certidão de Antecedentes Criminais serão
-              utilizadas apenas para conferência e serão definitivamente excluídas após a
-              conclusão da análise, não permanecendo armazenadas pela plataforma;
-            </li>
-            <li>li e concordo com este Termo de Consentimento.</li>
-          </ul>
+          <p style={{ marginBottom: 12 }}>
+            <b>7.</b> Estou ciente de que meus dados pessoais serão tratados
+            conforme descrito na Política de Privacidade do Zelo e poderei
+            exercer, a qualquer momento, os direitos previstos na LGPD.
+          </p>
+
           <p>
-            Ao selecionar a opção “Li e concordo com este Termo de Consentimento”, manifesto
-            meu consentimento livre, informado e inequívoco para o tratamento temporário dos
-            documentos nas condições acima descritas.
+            Ao selecionar a opção “Li e concordo”, manifesto meu consentimento
+            livre, informado e inequívoco para o tratamento dos meus dados
+            pessoais, nos termos deste documento e da Política de Privacidade
+            do Zelo.
           </p>
         </div>
       )}
@@ -137,7 +123,14 @@ export default function TermoConsentimento({ aceito, onChange }) {
           style={{ width: 18, height: 18, marginTop: 2, flexShrink: 0 }}
         />
         <span style={{ fontSize: 14, fontWeight: 600, lineHeight: 1.45 }}>
-          Li e concordo com este Termo de Consentimento
+          Li e concordo com os{' '}
+          <Link to="/termos" target="_blank" style={{ color: 'var(--sage-700)' }}>
+            Termos de Uso
+          </Link>{' '}
+          e a{' '}
+          <Link to="/privacidade" target="_blank" style={{ color: 'var(--sage-700)' }}>
+            Política de Privacidade
+          </Link>
         </span>
       </label>
     </div>

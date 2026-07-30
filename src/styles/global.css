@@ -122,3 +122,15 @@ h3{font-size:16px;font-weight:600;letter-spacing:0}
 @media (max-width:620px){
   .row{grid-template-columns:1fr}
 }
+
+/* ---------------------------------------------------- Páginas de documentos
+   Termos de Uso e Política de Privacidade: texto longo, hierarquia clara,
+   largura de leitura confortável. */
+.doc h1{font-family:'Fraunces',serif;font-size:28px;color:var(--sage-900);margin:0 0 4px}
+.doc .doc-data{font-size:13px;color:var(--muted);margin:0 0 28px}
+.doc h2{font-family:'Fraunces',serif;font-size:19px;color:var(--sage-900);margin:28px 0 10px}
+.doc h3{font-size:15px;color:var(--sage-900);margin:18px 0 8px}
+.doc p{font-size:14.5px;line-height:1.65;margin:0 0 12px}
+.doc ul{margin:0 0 14px 20px;padding:0}
+.doc li{font-size:14.5px;line-height:1.65;margin-bottom:6px}
+.doc a{color:var(--sage-700)}

@@ -3,7 +3,8 @@ import {
   atualizarPerfil, atualizarProfissional, obterProfissional,
   definirCategorias, definirBairros, obterCategoriasBairros,
   listarCategoriasAtivas, listarCidadesAtivas, listarBairros,
-  obterContato, salvarContato
+  listarServicosDisponiveis, obterServicosSelecionados, definirServicos,
+  obterContato, salvarContato, enviarFotoPerfil
 } from '../lib/api'
 import { useAuth } from '../hooks/useAuth'
 
@@ -23,12 +24,22 @@ export default function EditarPerfil({ onSalvo }) {
   const [experiencia, setExperiencia] = useState('')
   const [especialidades, setEspecialidades] = useState('')
   const [valorMeioTurno, setValorMeioTurno] = useState('')
+  const [valorKm, setValorKm] = useState('')
   const [valorDiaria, setValorDiaria] = useState('')
   const [telefone, setTelefone] = useState('')
   const [whatsapp, setWhatsapp] = useState('')
 
   const [categorias, setCategorias] = useState([])
   const [catSel, setCatSel] = useState([])
+
+  // Motorista cobra por km, não por turno — o campo de valor correspondente
+  // só faz sentido aparecer quando essa categoria está entre as marcadas.
+  const ehMotorista = categorias.some((c) => c.slug === 'motorista-particular' && catSel.includes(c.id))
+  const categoriaLimpeza = categorias.find((c) => c.slug === 'limpeza-residencial')
+  const ehLimpeza = !!categoriaLimpeza && catSel.includes(categoriaLimpeza.id)
+  const [servicosDisponiveis, setServicosDisponiveis] = useState([])
+  const [servicosSel, setServicosSel] = useState([])
+  const [servicoOutro, setServicoOutro] = useState('')
   const [bairros, setBairros] = useState([])
   const [bairroSel, setBairroSel] = useState([])
   const [atendeTodos, setAtendeTodos] = useState(false)
@@ -37,6 +48,10 @@ export default function EditarPerfil({ onSalvo }) {
   const [salvando, setSalvando] = useState(false)
   const [erro, setErro] = useState(null)
   const [ok, setOk] = useState(false)
+  const [pontuacao, setPontuacao] = useState(0)
+  const [fotoUrl, setFotoUrl] = useState(null)
+  const [enviandoFoto, setEnviandoFoto] = useState(false)
+  const [erroFoto, setErroFoto] = useState(null)
 
   useEffect(() => {
     if (!perfil?.id) return
@@ -58,12 +73,16 @@ export default function EditarPerfil({ onSalvo }) {
       if (prof) {
         setNome(prof.perfis?.nome ?? perfil.nome ?? '')
         setDescricao(prof.descricao ?? '')
+        setPontuacao(prof.pontuacao_perfil ?? 0)
+        setFotoUrl(prof.perfis?.foto_url ?? null)
         setIdade(prof.idade ?? '')
         setExperiencia(prof.experiencia ?? '')
         setEspecialidades((prof.especialidades ?? []).join(', '))
         setValorMeioTurno(prof.valor_meio_turno ?? '')
+        setValorKm(prof.valor_km ?? '')
         setValorDiaria(prof.valor_diaria ?? '')
         setAtendeTodos(!!prof.atende_todos_bairros)
+        setServicoOutro(prof.servico_outro ?? '')
       } else {
         setNome(perfil.nome ?? '')
       }
@@ -90,8 +109,42 @@ export default function EditarPerfil({ onSalvo }) {
     return () => { ativo = false }
   }, [perfil?.id])
 
+  // Serviços específicos só fazem sentido depois que sabemos se a
+  // categoria de limpeza está entre as marcadas — por isso um efeito
+  // separado, disparado quando `categoriaLimpeza` é resolvida (assim
+  // que a lista de categorias carrega).
+  useEffect(() => {
+    if (!perfil?.id || !categoriaLimpeza) return
+    let ativo = true
+
+    Promise.all([
+      listarServicosDisponiveis(categoriaLimpeza.id).catch(() => []),
+      obterServicosSelecionados(perfil.id).catch(() => [])
+    ]).then(([disponiveis, selecionados]) => {
+      if (!ativo) return
+      setServicosDisponiveis(disponiveis)
+      setServicosSel(selecionados)
+    })
+
+    return () => { ativo = false }
+  }, [perfil?.id, categoriaLimpeza?.id])
+
   function alternar(lista, setLista, id) {
     setLista(lista.includes(id) ? lista.filter((x) => x !== id) : [...lista, id])
+  }
+
+  async function trocarFoto(arquivo) {
+    if (!arquivo || !perfil?.id) return
+    setEnviandoFoto(true)
+    setErroFoto(null)
+    try {
+      const url = await enviarFotoPerfil({ perfilId: perfil.id, arquivo })
+      setFotoUrl(url)
+    } catch {
+      setErroFoto('Não foi possível enviar a foto. Tente uma imagem menor.')
+    } finally {
+      setEnviandoFoto(false)
+    }
   }
 
   async function salvar(e) {
@@ -110,9 +163,16 @@ export default function EditarPerfil({ onSalvo }) {
           : [],
         valor_meio_turno: valorMeioTurno ? Number(valorMeioTurno) : null,
         valor_diaria: valorDiaria ? Number(valorDiaria) : null,
-        atende_todos_bairros: atendeTodos
+        valor_km: valorKm ? Number(valorKm) : null,
+        atende_todos_bairros: atendeTodos,
+        servico_outro: ehLimpeza && servicoOutro.trim() ? servicoOutro.trim() : null
       })
       await definirCategorias(perfil.id, catSel)
+      // Serviços específicos só se aplicam à categoria de limpeza; se ela
+      // for desmarcada, os vínculos ficam órfãos no banco (a tabela não é
+      // limpa aqui) — inofensivo, porque a tela nunca os exibiria de novo
+      // sem essa categoria marcada.
+      if (ehLimpeza) await definirServicos(perfil.id, servicosSel)
       // Bairros marcados individualmente só importam quando "atende todos"
       // está desligado — mas gravamos do jeito que estiver na tela, sem
       // apagar o histórico de bairros caso ela desmarque depois.
@@ -137,6 +197,53 @@ export default function EditarPerfil({ onSalvo }) {
       <p className="lead" style={{ marginBottom: 22 }}>
         É isso que as famílias veem quando encontram você na busca.
       </p>
+
+      <div className="card" style={{ marginBottom: 18 }}>
+        <h3 style={{ marginBottom: 12 }}>Foto de perfil</h3>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          {fotoUrl ? (
+            <img
+              src={fotoUrl} alt="Sua foto de perfil"
+              style={{ width: 64, height: 64, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }}
+            />
+          ) : (
+            <div className="avatar" style={{ width: 64, height: 64, fontSize: 22, flexShrink: 0 }}>
+              {nome?.[0] ?? '?'}
+            </div>
+          )}
+          <div>
+            <input
+              type="file"
+              accept="image/*"
+              disabled={enviandoFoto}
+              onChange={(e) => trocarFoto(e.target.files?.[0])}
+              style={{ fontSize: 13.5 }}
+            />
+            {erroFoto && <p style={{ fontSize: 12.5, color: '#c0392b', marginTop: 6 }}>{erroFoto}</p>}
+            <p style={{ fontSize: 12, color: 'var(--muted)', marginTop: 6 }}>
+              Uma foto de rosto, de frente, ajuda a família a te reconhecer.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="card" style={{ marginBottom: 18 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 8 }}>
+          <span style={{ fontWeight: 700, fontSize: 14 }}>Perfil {pontuacao}/5 completo</span>
+        </div>
+        <div style={{ background: 'var(--line)', borderRadius: 999, height: 8, overflow: 'hidden' }}>
+          <div style={{
+            width: `${(pontuacao / 5) * 100}%`, height: '100%',
+            background: pontuacao === 5 ? 'var(--green)' : 'var(--coral)',
+            borderRadius: 999, transition: 'width .3s'
+          }} />
+        </div>
+        <p style={{ fontSize: 12.5, color: 'var(--muted)', marginTop: 8, marginBottom: 0 }}>
+          {pontuacao === 5
+            ? 'Perfil completo! Isso ajuda você a aparecer primeiro nas buscas.'
+            : 'Foto, descrição, valores, agenda e uma referência aprovada aumentam sua posição na busca.'}
+        </p>
+      </div>
 
       {erro && <div className="erro">{erro}</div>}
       {ok && (
@@ -242,10 +349,42 @@ export default function EditarPerfil({ onSalvo }) {
             <input id="vd" type="number" step="0.01" value={valorDiaria} onChange={(e) => setValorDiaria(e.target.value)} />
           </div>
         </div>
+        {ehMotorista && (
+          <div className="field">
+            <label htmlFor="vkm">Valor por km rodado (R$)</label>
+            <input id="vkm" type="number" step="0.01" value={valorKm} onChange={(e) => setValorKm(e.target.value)} />
+          </div>
+        )}
         <p style={{ fontSize: 12.5, color: 'var(--muted)', margin: 0 }}>
           Você define seus próprios valores e aceita apenas os serviços que quiser.
         </p>
       </div>
+
+      {ehLimpeza && (
+        <div className="card" style={{ marginBottom: 18 }}>
+          <h3>Quais serviços você oferece?</h3>
+          <p style={{ fontSize: 12.5, color: 'var(--muted)', marginBottom: 12 }}>
+            Marque todos os que se aplicam.
+          </p>
+          <div className="chips">
+            {servicosDisponiveis.map((s) => (
+              <button
+                key={s.id} type="button"
+                className={`chip ${servicosSel.includes(s.id) ? 'on' : ''}`}
+                onClick={() => alternar(servicosSel, setServicosSel, s.id)}
+              >{s.nome}</button>
+            ))}
+          </div>
+          <div className="field" style={{ marginTop: 14 }}>
+            <label htmlFor="servico-outro">Outro</label>
+            <input
+              id="servico-outro" value={servicoOutro}
+              onChange={(e) => setServicoOutro(e.target.value)}
+              placeholder="Algum serviço que não está na lista"
+            />
+          </div>
+        </div>
+      )}
 
       <button className="btn full" type="submit" disabled={salvando}>
         {salvando ? 'Salvando…' : 'Salvar perfil'}

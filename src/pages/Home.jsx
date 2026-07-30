@@ -30,8 +30,8 @@ export default function Home() {
         />
 
         <p className="lead" style={{ maxWidth: 360, marginBottom: 36 }}>
-          Faxineiras, babás e cuidadoras de idosos para cuidar
-          da sua casa e da sua família.
+          Diaristas, babás, cuidadoras de idosos e motoristas particulares
+          para cuidar da sua casa e da sua família.
         </p>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12, width: '100%', maxWidth: 320 }}>

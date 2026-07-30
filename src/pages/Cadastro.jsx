@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams, Link } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { listarCidadesAtivas, listarBairros } from '../lib/api'
 import TermoConsentimento, { VERSAO_TERMO } from '../components/TermoConsentimento'
+import DeclaracaoAntecedentes, { VERSAO_DECLARACAO } from '../components/DeclaracaoAntecedentes'
 
 /**
  * Cadastro em duas telas.
@@ -38,6 +39,9 @@ export default function Cadastro() {
   const [erro, setErro] = useState(null)
   const [enviando, setEnviando] = useState(false)
   const [aceitouTermo, setAceitouTermo] = useState(false)
+  const [aceitouDeclaracao, setAceitouDeclaracao] = useState(false)
+  const [declarouVerdade, setDeclarouVerdade] = useState(false)
+  const [declarouApto, setDeclarouApto] = useState(false)
   const [sucesso, setSucesso] = useState(false)
 
   useEffect(() => {
@@ -52,23 +56,36 @@ export default function Cadastro() {
     listarBairros(cidadeId).then(setBairros).catch(() => setBairros([]))
   }, [cidadeId])
 
+  const [precisaConfirmar, setPrecisaConfirmar] = useState(false)
+
   async function submeter(e) {
     e.preventDefault()
     setEnviando(true)
     setErro(null)
     try {
-      await cadastrar({
+      const { precisaConfirmarEmail } = await cadastrar({
         email, senha, nome, role, cidadeId, bairroId: bairroId || null,
         // Só a profissional envia documentos, então só ela consente.
-        consentimento: role === 'profissional'
-          ? { aceito: aceitouTermo, versao: VERSAO_TERMO }
-          : null
+        termo: { aceito: aceitouTermo, versao: VERSAO_TERMO },
+        declaracaoAntecedentes: role === 'profissional'
+          ? { aceito: aceitouDeclaracao, versao: VERSAO_DECLARACAO }
+          : null,
+        declarouVerdade: role === 'profissional' ? declarouVerdade : false,
+        declarouApto: role === 'profissional' ? declarouApto : false
       })
 
-      // Confirma antes de sair da tela. Sem isso a pessoa era jogada no
-      // painel sem saber se deu certo — e depois do bug de corrida no
-      // perfil, essa confirmação explícita ajuda a distinguir "deu certo"
-      // de "algo travou".
+      if (precisaConfirmarEmail) {
+        // Confirmação de e-mail ligada: não há sessão ainda, não há
+        // painel para onde ir. Mostra a instrução e para por aqui — a
+        // pessoa só consegue entrar depois de clicar no link do e-mail.
+        setPrecisaConfirmar(true)
+        setEnviando(false)
+        return
+      }
+
+      // Confirmação desligada: a sessão já existe, o perfil chega pelo
+      // useEffect normal do useAuth. Confirma antes de sair da tela —
+      // sem isso a pessoa era jogada no painel sem saber se deu certo.
       setSucesso(true)
       setTimeout(() => {
         navigate(role === 'profissional' ? '/painel-profissional' : '/painel')
@@ -106,7 +123,7 @@ export default function Cadastro() {
               Preciso contratar
             </div>
             <div style={{ fontSize: 14, color: 'var(--muted)' }}>
-              Encontrar faxineira, babá ou cuidadora perto de você.
+              Encontrar diarista, babá, cuidadora ou motorista particular perto de você.
             </div>
           </button>
 
@@ -131,6 +148,25 @@ export default function Cadastro() {
         <p style={{ textAlign: 'center', marginTop: 26, fontSize: 14, color: 'var(--muted)' }}>
           Já tem conta? <Link to="/entrar" style={{ color: 'var(--sage-700)', fontWeight: 600 }}>Entrar</Link>
         </p>
+      </main>
+    )
+  }
+
+  // ---------------------------------------------------- Confirmação de e-mail
+  if (precisaConfirmar) {
+    return (
+      <main className="wrap fade-in" style={{ padding: '50px 0 60px', maxWidth: 440, textAlign: 'center' }}>
+        <h2>Confirme seu e-mail</h2>
+        <p className="lead" style={{ marginBottom: 24 }}>
+          Enviamos um link de confirmação para <b>{email}</b>. Abra sua caixa
+          de entrada e clique no link para ativar sua conta.
+        </p>
+        <p style={{ fontSize: 13.5, color: 'var(--muted)', marginBottom: 24 }}>
+          Não chegou? Confira a pasta de spam. O link vale por algumas horas.
+        </p>
+        <Link to="/entrar" className="btn full" style={{ textAlign: 'center', display: 'block' }}>
+          Já confirmei — entrar
+        </Link>
       </main>
     )
   }
@@ -195,8 +231,40 @@ export default function Cadastro() {
           </div>
         </div>
 
+        <TermoConsentimento aceito={aceitouTermo} onChange={setAceitouTermo} />
+
         {role === 'profissional' && (
-          <TermoConsentimento aceito={aceitouTermo} onChange={setAceitouTermo} />
+          <DeclaracaoAntecedentes aceito={aceitouDeclaracao} onChange={setAceitouDeclaracao} />
+        )}
+
+        {role === 'profissional' && (
+          <div className="card" style={{ marginTop: 18 }}>
+            <h3 style={{ marginBottom: 12 }}>Suas declarações</h3>
+
+            <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer', marginBottom: 12 }}>
+              <input
+                type="checkbox"
+                checked={declarouVerdade}
+                onChange={(e) => setDeclarouVerdade(e.target.checked)}
+                style={{ width: 18, height: 18, marginTop: 2, flexShrink: 0 }}
+              />
+              <span style={{ fontSize: 14, lineHeight: 1.45 }}>
+                Declaro que todas as informações fornecidas são verdadeiras e atualizadas.
+              </span>
+            </label>
+
+            <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={declarouApto}
+                onChange={(e) => setDeclarouApto(e.target.checked)}
+                style={{ width: 18, height: 18, marginTop: 2, flexShrink: 0 }}
+              />
+              <span style={{ fontSize: 14, lineHeight: 1.45 }}>
+                Declaro estar legalmente apto(a) para exercer as atividades anunciadas.
+              </span>
+            </label>
+          </div>
         )}
 
         {role === 'profissional' && (
@@ -216,7 +284,7 @@ export default function Cadastro() {
         <button
           className="btn full"
           type="submit"
-          disabled={enviando || sucesso || (role === 'profissional' && !aceitouTermo)}
+          disabled={enviando || sucesso || !aceitouTermo || (role === 'profissional' && (!aceitouDeclaracao || !declarouVerdade || !declarouApto))}
           style={{ marginTop: 18 }}
         >
           {sucesso ? 'Entrando…' : enviando ? 'Criando conta…' : 'Criar conta'}

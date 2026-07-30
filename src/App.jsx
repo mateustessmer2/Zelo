@@ -2,6 +2,7 @@ import { Suspense, lazy } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { useAuth } from './hooks/useAuth'
 import Header from './components/Header'
+import Rodape from './components/Rodape'
 import Home from './pages/Home'
 
 // Code splitting: a home carrega no bundle inicial (é a porta de entrada,
@@ -14,6 +15,9 @@ const Login = lazy(() => import('./pages/Login'))
 const Cadastro = lazy(() => import('./pages/Cadastro'))
 const RecuperarSenha = lazy(() => import('./pages/RecuperarSenha'))
 const NovaSenha = lazy(() => import('./pages/NovaSenha'))
+const TermosUso = lazy(() => import('./pages/TermosUso'))
+const Privacidade = lazy(() => import('./pages/Privacidade'))
+const MinhaConta = lazy(() => import('./pages/MinhaConta'))
 const PainelCliente = lazy(() => import('./pages/PainelCliente'))
 const PainelProfissional = lazy(() => import('./pages/PainelProfissional'))
 const PainelAdmin = lazy(() => import('./pages/PainelAdmin'))
@@ -65,12 +69,16 @@ export default function App() {
           <Route path="/cadastrar" element={<Cadastro />} />
           <Route path="/recuperar-senha" element={<RecuperarSenha />} />
           <Route path="/nova-senha" element={<NovaSenha />} />
+          <Route path="/termos" element={<TermosUso />} />
+          <Route path="/privacidade" element={<Privacidade />} />
+          <Route path="/minha-conta" element={<Protegida><MinhaConta /></Protegida>} />
           <Route path="/painel" element={<Protegida papel="cliente"><PainelCliente /></Protegida>} />
           <Route path="/painel-profissional" element={<Protegida papel="profissional"><PainelProfissional /></Protegida>} />
           <Route path="/admin" element={<Protegida papel="admin"><PainelAdmin /></Protegida>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Suspense>
+      <Rodape />
     </>
   )
 }

@@ -142,8 +142,14 @@ export async function buscarProfissionais({ categoriaId, bairroId, turno, limite
 
   let query = supabase
     .from('profissionais')
-    .select('id, descricao, idade, valor_meio_turno, valor_diaria, tempo_resposta_min, visivel, atende_todos_bairros, selo')
+    .select('id, descricao, idade, valor_meio_turno, valor_diaria, valor_km, tempo_resposta_min, visivel, atende_todos_bairros, selo, pontuacao_perfil')
     .eq('visivel', true)
+    // Perfil mais completo aparece primeiro — decisão de negócio para
+    // incentivar preenchimento (foto, descrição, valores, agenda,
+    // referência aprovada). Empate desfeito por tempo de resposta: entre
+    // dois perfis igualmente completos, quem responde mais rápido sobe.
+    .order('pontuacao_perfil', { ascending: false })
+    .order('tempo_resposta_min', { ascending: true, nullsFirst: false })
     .limit(limite)
 
   if (ids) query = query.in('id', ids)
@@ -206,21 +212,26 @@ export async function obterProfissional(id) {
   if (error) throw error
   if (!prof) return null
 
-  const [{ data: perfilRow }, { data: cats }, { data: bairs }] = await Promise.all([
+  const [{ data: perfilRow }, { data: cats }, { data: bairs }, { data: servs }] = await Promise.all([
     supabase.from('perfis').select('nome, foto_url, cidade_id, bairro_id').eq('id', id).maybeSingle(),
     supabase.from('profissional_categorias').select('categoria_id').eq('profissional_id', id),
-    supabase.from('profissional_bairros').select('bairro_id').eq('profissional_id', id)
+    supabase.from('profissional_bairros').select('bairro_id').eq('profissional_id', id),
+    supabase.from('profissional_servicos').select('servico_id').eq('profissional_id', id)
   ])
 
   const categoriaIds = (cats ?? []).map((c) => c.categoria_id)
   const bairroIds = (bairs ?? []).map((b) => b.bairro_id)
+  const servicoIds = (servs ?? []).map((s) => s.servico_id)
 
-  const [{ data: categoriasNomes }, { data: bairrosNomes }] = await Promise.all([
+  const [{ data: categoriasNomes }, { data: bairrosNomes }, { data: servicosNomes }] = await Promise.all([
     categoriaIds.length
       ? supabase.from('categorias').select('id, nome, icone').in('id', categoriaIds)
       : Promise.resolve({ data: [] }),
     bairroIds.length
       ? supabase.from('bairros').select('id, nome').in('id', bairroIds)
+      : Promise.resolve({ data: [] }),
+    servicoIds.length
+      ? supabase.from('servicos_disponiveis').select('id, nome').in('id', servicoIds)
       : Promise.resolve({ data: [] })
   ])
 
@@ -229,6 +240,7 @@ export async function obterProfissional(id) {
     perfis: perfilRow ?? null,
     categorias: categoriasNomes ?? [],
     bairros: bairrosNomes ?? [],
+    servicos: servicosNomes ?? [],
     profissional_categorias: (categoriasNomes ?? []).map((c) => ({ categorias: c })),
     profissional_bairros: (bairrosNomes ?? []).map((b) => ({ bairros: b }))
   }
@@ -643,6 +655,40 @@ export async function enviarDocumento({ profissionalId, tipo, arquivo }) {
   return data
 }
 
+/**
+ * Foto de perfil — bucket PÚBLICO (`fotos-perfil`), diferente do bucket
+ * de documentos de verificação. Faz sentido: o cliente vê essa foto na
+ * busca; ela não é dado sensível como identidade ou selfie.
+ *
+ * `upsert: true` porque a profissional deve poder trocar a foto quantas
+ * vezes quiser — diferente de documento de verificação, que não se edita
+ * depois de enviado.
+ */
+export async function enviarFotoPerfil({ perfilId, arquivo }) {
+  const bruta = (arquivo.name.includes('.') ? arquivo.name.split('.').pop() : '').toLowerCase()
+  const ext = /^[a-z0-9]{1,5}$/.test(bruta) ? bruta : 'jpg'
+  const path = `${perfilId}/foto.${ext}`
+
+  const { error: upErr } = await supabase.storage
+    .from('fotos-perfil')
+    .upload(path, arquivo, { upsert: true })
+  if (upErr) throw upErr
+
+  const { data: pub } = supabase.storage.from('fotos-perfil').getPublicUrl(path)
+  // Cache-busting: sem isto, o navegador continuaria mostrando a foto
+  // antiga em cache mesmo depois da troca, porque o nome do arquivo
+  // (com upsert) não muda.
+  const url = `${pub.publicUrl}?t=${Date.now()}`
+
+  const { error } = await supabase
+    .from('perfis')
+    .update({ foto_url: url, updated_at: new Date().toISOString() })
+    .eq('id', perfilId)
+  if (error) throw error
+
+  return url
+}
+
 // ------------------------------------------------------------------ Admin
 export async function listarFilaVerificacao() {
   const { data: verifs, error } = await supabase
@@ -789,6 +835,47 @@ export async function definirCategorias(profissionalId, categoriaIds) {
   if (error) throw error
 }
 
+/**
+ * Serviços específicos disponíveis dentro de uma categoria — ex.: dentro
+ * de "Limpeza Residencial", a lista de "Limpeza geral", "Lavar roupas"
+ * etc. Lista fixa (não texto livre), para permitir filtrar por serviço
+ * específico no futuro sem depender de como cada profissional escreveu.
+ */
+export async function listarServicosDisponiveis(categoriaId) {
+  const { data, error } = await supabase
+    .from('servicos_disponiveis')
+    .select('id, nome, ordem')
+    .eq('categoria_id', categoriaId)
+    .order('ordem')
+  if (error) throw error
+  return data
+}
+
+/** Quais serviços específicos a profissional já marcou. */
+export async function obterServicosSelecionados(profissionalId) {
+  const { data, error } = await supabase
+    .from('profissional_servicos')
+    .select('servico_id')
+    .eq('profissional_id', profissionalId)
+  if (error) throw error
+  return (data ?? []).map((r) => r.servico_id)
+}
+
+/** Substitui o conjunto de serviços marcados — mesmo padrão de definirCategorias. */
+export async function definirServicos(profissionalId, servicoIds) {
+  const { error: delErr } = await supabase
+    .from('profissional_servicos')
+    .delete()
+    .eq('profissional_id', profissionalId)
+  if (delErr) throw delErr
+
+  if (!servicoIds.length) return
+  const { error } = await supabase
+    .from('profissional_servicos')
+    .insert(servicoIds.map((servico_id) => ({ profissional_id: profissionalId, servico_id })))
+  if (error) throw error
+}
+
 /** Substitui o conjunto de bairros atendidos (N:N). */
 export async function definirBairros(profissionalId, bairroIds) {
   const { error: delErr } = await supabase
@@ -867,4 +954,65 @@ export async function adicionarBloqueio(profissionalId, data, motivo) {
 export async function removerBloqueio(id) {
   const { error } = await supabase.from('dias_bloqueados').delete().eq('id', id)
   if (error) throw error
+}
+
+// ------------------------------------------------------- Conta e privacidade
+
+/**
+ * Exporta todos os dados pessoais da pessoa logada, em JSON.
+ *
+ * Atende ao direito de acesso e ao de portabilidade (LGPD art. 18, II e V).
+ * Cada consulta respeita o RLS — ou seja, só traz o que aquela pessoa já
+ * poderia ver. Não usa service role de propósito: se algum dado não sai
+ * aqui, é porque a própria pessoa não tem acesso a ele.
+ */
+export async function exportarMeusDados(perfilId) {
+  const [
+    { data: perfil },
+    { data: profissional },
+    { data: contato },
+    { data: bookingsCliente },
+    { data: bookingsProf },
+    { data: avaliacoesFeitas },
+    { data: referencias }
+  ] = await Promise.all([
+    supabase.from('perfis').select('*').eq('id', perfilId).maybeSingle(),
+    supabase.from('profissionais').select('*').eq('id', perfilId).maybeSingle(),
+    supabase.from('contatos').select('*').eq('perfil_id', perfilId).maybeSingle(),
+    supabase.from('bookings').select('*').eq('cliente_id', perfilId),
+    supabase.from('bookings').select('*').eq('profissional_id', perfilId),
+    supabase.from('avaliacoes').select('*').eq('autor_id', perfilId),
+    supabase.from('referencias_trabalho').select('*').eq('profissional_id', perfilId)
+  ])
+
+  return {
+    exportado_em: new Date().toISOString(),
+    perfil: perfil ?? null,
+    dados_profissionais: profissional ?? null,
+    contato: contato ?? null,
+    contratacoes_como_cliente: bookingsCliente ?? [],
+    contratacoes_como_profissional: bookingsProf ?? [],
+    avaliacoes_que_escrevi: avaliacoesFeitas ?? [],
+    referencias_de_trabalho: referencias ?? []
+  }
+}
+
+/**
+ * Encerra a conta da pessoa logada.
+ *
+ * Apaga a linha em `perfis`, e o `on delete cascade` do schema leva junto
+ * profissionais, contatos, bookings, avaliações, referências e demais
+ * vínculos — sem deixar órfão.
+ *
+ * O usuário em `auth.users` NÃO é removido daqui: isso exige privilégio
+ * de administrador, que o navegador não tem (e não deveria ter). Na
+ * prática a conta fica inutilizável — sem perfil, o app não deixa entrar
+ * em lugar nenhum — mas a remoção definitiva do login precisa ser feita
+ * pelo admin no painel do Supabase. Isso está descrito na tela para não
+ * prometer mais do que o sistema entrega.
+ */
+export async function encerrarMinhaConta(perfilId) {
+  const { error } = await supabase.from('perfis').delete().eq('id', perfilId)
+  if (error) throw error
+  await supabase.auth.signOut()
 }

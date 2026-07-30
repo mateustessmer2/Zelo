@@ -101,13 +101,13 @@ export default function Busca() {
                 )}
               </div>
               <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                {(turno === 'integral' ? p.valor_diaria : p.valor_meio_turno) && (
+                {(p.valor_km || (turno === 'integral' ? p.valor_diaria : p.valor_meio_turno)) && (
                   <div>
                     <span style={{ fontFamily: "'Fraunces',serif", fontWeight: 600, fontSize: 19, color: 'var(--sage-900)' }}>
-                      R$ {turno === 'integral' ? p.valor_diaria : p.valor_meio_turno}
+                      R$ {p.valor_km ?? (turno === 'integral' ? p.valor_diaria : p.valor_meio_turno)}
                     </span>
                     <span style={{ fontSize: 12, color: 'var(--muted)' }}>
-                      {turno === 'integral' ? '/turno integral' : '/meio turno'}
+                      {p.valor_km ? '/km' : (turno === 'integral' ? '/turno integral' : '/meio turno')}
                     </span>
                   </div>
                 )}

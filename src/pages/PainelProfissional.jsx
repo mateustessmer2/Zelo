@@ -317,9 +317,14 @@ function Verificacao({ perfilId, verificacoes, idOk, antOk, selfieOk, noAr, onEn
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3a5244" strokeWidth="2">
             <rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" />
           </svg>
-          <p><b>Seus documentos e a selfie ficam privados.</b> Nenhum cliente tem acesso a eles —
-            a selfie serve só para conferirmos que o documento é seu. O que aparece no seu perfil
-            é apenas um selo de identidade confirmada.</p>
+          <p>
+            <b>Como usamos o que você envia.</b> A selfie e o documento são usados
+            exclusivamente para conferência da sua identidade. Depois da validação,
+            os arquivos são excluídos e não ficam armazenados pelo Zelo — permanece
+            apenas o registro de que a conferência foi feita. Nenhum cliente tem
+            acesso a eles: o que aparece no seu perfil é somente o selo. O envio é
+            voluntário, mas necessário para obter o selo de identidade confirmada.
+          </p>
         </div>
       </div>
 

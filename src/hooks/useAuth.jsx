@@ -84,20 +84,50 @@ export function AuthProvider({ children }) {
       if (error) throw error
     },
 
-    async cadastrar({ email, senha, nome, role, cidadeId, bairroId, consentimento }) {
-      const { data, error } = await supabase.auth.signUp({ email, password: senha })
+    /**
+     * Cadastra e devolve `{ precisaConfirmarEmail }` para a tela decidir
+     * o que mostrar — não navega nem assume mais nada sozinho.
+     *
+     * Os dados (role, nome, cidade, bairro, consentimento) viajam dentro
+     * de `options.data`, viram `raw_user_meta_data` no auth.users, e o
+     * trigger `criar_perfil_ao_registrar` (migração 19) monta as linhas
+     * em `perfis`/`profissionais` a partir daí — sem depender de sessão.
+     *
+     * Isto substituiu o insert direto que existia aqui antes. Motivo:
+     * com a confirmação de e-mail LIGADA, `signUp()` não cria sessão até
+     * a pessoa clicar no link — e um insert feito pelo navegador exige
+     * `auth.uid()`, que não existe nesse meio-tempo. O trigger no banco
+     * roda com privilégio de sistema e não tem esse problema.
+     */
+    async cadastrar({ email, senha, nome, role, cidadeId, bairroId, termo, declaracaoAntecedentes, declarouVerdade, declarouApto }) {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password: senha,
+        options: {
+          data: {
+            role,
+            nome,
+            cidade_id: cidadeId || null,
+            bairro_id: bairroId || null,
+            // Termo de Consentimento e Ciência do Usuário — vale para
+            // cliente e profissional, gravado em `perfis` pelo trigger.
+            termo_aceito: !!termo?.aceito,
+            termo_versao: termo?.aceito ? termo.versao : null,
+            declaracao_antecedentes_aceito: !!declaracaoAntecedentes?.aceito,
+            declaracao_antecedentes_versao: declaracaoAntecedentes?.aceito ? declaracaoAntecedentes.versao : null,
+            declarou_info_verdadeiras: !!declarouVerdade,
+            declarou_apto_legalmente: !!declarouApto
+          }
+        }
+      })
 
       // E-mail já cadastrado tem dois comportamentos possíveis no Supabase,
       // dependendo da configuração de confirmação por e-mail:
       //
-      //  • confirmação DESLIGADA (nosso caso hoje): vem `error` explícito
-      //    com "already registered";
+      //  • confirmação DESLIGADA: vem `error` explícito com "already registered";
       //  • confirmação LIGADA: por proteção contra descoberta de e-mails,
       //    o Supabase finge sucesso e devolve um usuário com `identities`
       //    vazio, sem criar nada.
-      //
-      // Tratamos os dois, para que ligar a confirmação no futuro não
-      // reintroduza o problema silenciosamente.
       const jaExiste =
         (error && /already\s*registered|already\s*exists|user\s*already/i.test(error.message)) ||
         (!error && data?.user && Array.isArray(data.user.identities) && data.user.identities.length === 0)
@@ -110,49 +140,12 @@ export function AuthProvider({ children }) {
 
       if (error) throw error
 
-      const userId = data.user?.id
-      if (!userId) return
-
-      const { error: perfilErr } = await supabase.from('perfis').insert({
-        id: userId, role, nome, cidade_id: cidadeId, bairro_id: bairroId
-      })
-      if (perfilErr) throw perfilErr
-
-      // Profissional ganha a linha em `profissionais` já com verificação pendente.
-      // Ela só aparece na busca depois que identidade E selfie forem
-      // aprovadas — a coluna `visivel` é gerada pelo banco.
-      //
-      // O consentimento é gravado aqui junto: data e versão do termo são a
-      // prova exigida pela LGPD (art. 8º, §2º). Sem isso, o checkbox só
-      // existiria na tela e não provaria nada depois.
-      if (role === 'profissional') {
-        const { error: profErr } = await supabase.from('profissionais').insert({
-          id: userId,
-          consentimento_verificacao: !!consentimento?.aceito,
-          consentimento_em: consentimento?.aceito ? new Date().toISOString() : null,
-          consentimento_versao: consentimento?.aceito ? consentimento.versao : null
-        })
-        if (profErr) throw profErr
-      }
-
-      // Preenche o perfil no contexto AQUI, e não deixa para a busca do
-      // useEffect acima.
-      //
-      // Motivo: `signUp` já cria a sessão, o que dispara o
-      // `onAuthStateChange` — e aquele efeito sai buscando o perfil ANTES
-      // deste insert terminar. A busca não acha nada, grava null, e não
-      // tenta de novo. O resultado era a tela de "não encontramos os
-      // dados da sua conta" logo após um cadastro bem-sucedido, com o
-      // perfil existindo no banco.
-      setPerfil({
-        id: userId,
-        role,
-        nome,
-        foto_url: null,
-        cidade_id: cidadeId,
-        bairro_id: bairroId
-      })
-      setCarregando(false)
+      // Sem `session`, a confirmação de e-mail está ligada e a pessoa
+      // ainda não pode entrar — ela precisa abrir a caixa de entrada
+      // primeiro. Com `session`, ela já está logada (confirmação
+      // desligada), e o perfil chega pelo mesmo useEffect que já cobre
+      // login — sem precisar de tratamento especial aqui.
+      return { precisaConfirmarEmail: !data.session }
     },
 
     async sair() {
