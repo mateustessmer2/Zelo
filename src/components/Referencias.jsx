@@ -47,9 +47,9 @@ export default function Referencias({ perfilId, referencias, selo, onEnviado }) 
       <h3>Referências de trabalho</h3>
       <p style={{ fontSize: 13.5, color: 'var(--muted)', marginBottom: 14 }}>
         Informe o contato de clientes que você já atendeu. Ligamos para confirmar
-        que o contato existe antes de aprovar. Isso facilita o acesso à referência
-        para quem for contratar — mas não substitui a conferência que o próprio
-        cliente pode fazer.
+        que o contato existe antes de aprovar. Depois de aprovada, a referência
+        (nome e telefone) fica visível no seu perfil público, para que quem for
+        contratar possa ligar e confirmar por conta própria.
       </p>
 
       {selo && (
