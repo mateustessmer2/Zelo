@@ -67,11 +67,19 @@ export default function PainelProfissional() {
 
   const idOk = verificacoes.find((v) => v.tipo === 'identidade')?.status === 'aprovado'
   const antOk = verificacoes.find((v) => v.tipo === 'antecedentes')?.status === 'aprovado'
-  const selfieOk = verificacoes.find((v) => v.tipo === 'selfie')?.status === 'aprovado'
+  const selfieVerif = verificacoes.find((v) => v.tipo === 'selfie')
+  const selfieOk = selfieVerif?.status === 'aprovado'
   // Antecedentes temporariamente fora do gate de visibilidade — ver
   // migração 16. antOk continua calculado (útil se algum dia a fila
   // de verificação ainda mostrar um item de antecedentes de antes),
   // mas não decide mais se o perfil entra no ar.
+  //
+  // Identidade e selfie condicionam só a VISIBILIDADE na busca (via
+  // coluna `visivel` no banco), não o acesso ao painel em si — a
+  // profissional usa Pedidos, Perfil, Agenda etc. normalmente mesmo
+  // antes de enviar ou ser aprovada. Já foi testado bloquear o painel
+  // inteiro até o envio da selfie; a decisão foi revertida para manter
+  // o acesso livre e deixar só a busca condicionada.
   const noAr = idOk && selfieOk
 
   return (
@@ -268,7 +276,7 @@ export default function PainelProfissional() {
 }
 
 /** Envio de documentos sensíveis — bucket privado, cliente nunca acessa. */
-function Verificacao({ perfilId, verificacoes, idOk, antOk, selfieOk, noAr, onEnviado }) {
+function Verificacao({ perfilId, verificacoes, idOk, antOk, selfieOk, noAr, onEnviado, somenteSelfie = false }) {
   const [erro, setErro] = useState(null)
   const [enviando, setEnviando] = useState(null)
 
@@ -290,20 +298,26 @@ function Verificacao({ perfilId, verificacoes, idOk, antOk, selfieOk, noAr, onEn
 
   return (
     <>
-      <h2>Verificação</h2>
-      <p className="lead" style={{ marginBottom: 22 }}>
-        Obrigatória para o perfil ficar visível. É o que faz as famílias confiarem.
-      </p>
+      {!somenteSelfie && (
+        <>
+          <h2>Verificação</h2>
+          <p className="lead" style={{ marginBottom: 22 }}>
+            Obrigatória para o perfil ficar visível. É o que faz as famílias confiarem.
+          </p>
+        </>
+      )}
 
       {erro && <div className="erro">{erro}</div>}
 
       <div className="card">
-        <Doc
-          titulo="Documento de identidade (RG ou CNH)"
-          status={statusDe('identidade')}
-          enviando={enviando === 'identidade'}
-          onArquivo={(f) => subir('identidade', f)}
-        />
+        {!somenteSelfie && (
+          <Doc
+            titulo="Documento de identidade (RG ou CNH)"
+            status={statusDe('identidade')}
+            enviando={enviando === 'identidade'}
+            onArquivo={(f) => subir('identidade', f)}
+          />
+        )}
         <Doc
           titulo="Selfie"
           sub="Foto do seu rosto, sem óculos escuros ou boné · confere com o documento"
@@ -319,31 +333,31 @@ function Verificacao({ perfilId, verificacoes, idOk, antOk, selfieOk, noAr, onEn
           </svg>
           <p>
             <b>Como usamos o que você envia.</b> A selfie e o documento são usados
-            exclusivamente para conferência da sua identidade. Depois da validação,
-            os arquivos são excluídos e não ficam armazenados pelo Zelo — permanece
-            apenas o registro de que a conferência foi feita. Nenhum cliente tem
+            exclusivamente para conferência da sua identidade. Nenhum cliente tem
             acesso a eles: o que aparece no seu perfil é somente o selo. O envio é
-            voluntário, mas necessário para obter o selo de identidade confirmada.
+            necessário para o perfil ficar visível na busca dos clientes.
           </p>
         </div>
       </div>
 
-      <div className={`note ${noAr ? 'neutral' : 'warn'}`} style={noAr ? { background: 'var(--green-bg)' } : {}}>
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={noAr ? '#3f7d54' : '#b8862c'} strokeWidth="2">
-          {noAr
-            ? <><path d="M12 2 4 5v6c0 5 3.5 8 8 11 4.5-3 8-6 8-11V5l-8-3z" /><path d="m9 12 2 2 4-4" /></>
-            : <><circle cx="12" cy="12" r="10" /><path d="M12 8v4M12 16h.01" /></>}
-        </svg>
-        <p style={noAr ? { color: 'var(--green)' } : {}}>
-          {noAr
-            ? <><b>Perfil no ar.</b> Identidade e selfie aprovadas — você já aparece na busca dos clientes.</>
-            : <><b>Perfil ainda não visível.</b> Faltam: {[
-                !idOk && 'identidade',
-                !selfieOk && 'selfie'
-              ].filter(Boolean).join(', ')}. Assim que forem aprovadas, seu perfil entra
-              no ar automaticamente.</>}
-        </p>
-      </div>
+      {!somenteSelfie && (
+        <div className={`note ${noAr ? 'neutral' : 'warn'}`} style={noAr ? { background: 'var(--green-bg)' } : {}}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={noAr ? '#3f7d54' : '#b8862c'} strokeWidth="2">
+            {noAr
+              ? <><path d="M12 2 4 5v6c0 5 3.5 8 8 11 4.5-3 8-6 8-11V5l-8-3z" /><path d="m9 12 2 2 4-4" /></>
+              : <><circle cx="12" cy="12" r="10" /><path d="M12 8v4M12 16h.01" /></>}
+          </svg>
+          <p style={noAr ? { color: 'var(--green)' } : {}}>
+            {noAr
+              ? <><b>Perfil no ar.</b> Identidade e selfie aprovadas — você já aparece na busca dos clientes.</>
+              : <><b>Perfil ainda não visível.</b> Faltam: {[
+                  !idOk && 'identidade',
+                  !selfieOk && 'selfie'
+                ].filter(Boolean).join(', ')}. Assim que forem aprovadas, seu perfil entra
+                no ar automaticamente.</>}
+          </p>
+        </div>
+      )}
     </>
   )
 }
