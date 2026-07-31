@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
-import { obterProfissional, obterTrustScore, criarBooking, obterWhatsappParaContratacao } from '../lib/api'
+import { obterProfissional, obterTrustScore, criarBooking, obterWhatsappParaContratacao, contarReferenciasAprovadas, solicitarEnvioReferencia } from '../lib/api'
 import { useAuth } from '../hooks/useAuth'
 import TrustScore from '../components/TrustScore'
 import Avaliacoes from '../components/Avaliacoes'
 import SeloReferencias from '../components/SeloReferencias'
 import AvisoIntermediacao from '../components/AvisoIntermediacao'
 import SeloVerificacao from '../components/SeloVerificacao'
+import DisclaimerReferencia from '../components/DisclaimerReferencia'
 
 export default function PerfilProfissional() {
   const { id } = useParams()
@@ -23,16 +24,39 @@ export default function PerfilProfissional() {
   const [score, setScore] = useState(null)
   const [erro, setErro] = useState(null)
   const [contratando, setContratando] = useState(false)
+  const [temReferencia, setTemReferencia] = useState(false)
+  const [disclaimerAberto, setDisclaimerAberto] = useState(false)
 
   useEffect(() => {
     let ativo = true
-    Promise.all([obterProfissional(id), obterTrustScore(id, 'cliente_avalia_prof')])
-      .then(([p, s]) => { if (!ativo) return; setProf(p); setScore(s) })
+    Promise.all([
+      obterProfissional(id),
+      obterTrustScore(id, 'cliente_avalia_prof'),
+      // Só a CONTAGEM — nunca nome/telefone chega ao cliente antes de
+      // contratar e aceitar o disclaimer. Ver DisclaimerReferencia.jsx.
+      contarReferenciasAprovadas(id).catch(() => 0)
+    ])
+      .then(([p, s, qtdRef]) => {
+        if (!ativo) return
+        setProf(p); setScore(s); setTemReferencia(qtdRef > 0)
+      })
       .catch(() => ativo && setErro('Perfil não encontrado.'))
     return () => { ativo = false }
   }, [id])
 
-  async function contratar() {
+  // O clique no botão abre o disclaimer quando há referência a divulgar;
+  // sem referência, contrata direto — não faz sentido mostrar uma barreira
+  // legal sobre um dado que não existe.
+  function aoClicarContratar() {
+    if (!sessao) return navigate('/entrar')
+    if (temReferencia) {
+      setDisclaimerAberto(true)
+      return
+    }
+    contratar(null)
+  }
+
+  async function contratar(versaoDisclaimer) {
     if (!sessao) return navigate('/entrar')
     setContratando(true)
     try {
@@ -76,6 +100,21 @@ export default function PerfilProfissional() {
         // contratação, que já foi registrada — só não abre o wa.me.
       }
 
+      // Referência só é enviada se a profissional TEM alguma aprovada E o
+      // cliente passou pelo disclaimer (versaoDisclaimer vem preenchido
+      // só nesse caso — ver aoClicarContratar). Falha aqui não desfaz a
+      // contratação, que já está registrada; só o e-mail de referência
+      // não sai.
+      if (versaoDisclaimer) {
+        try {
+          await solicitarEnvioReferencia({ bookingId: booking.id, versaoDisclaimer })
+        } catch {
+          // Silencioso de propósito: a contratação já aconteceu e não deve
+          // parecer ter falhado por causa de um e-mail secundário.
+        }
+      }
+
+      setDisclaimerAberto(false)
       navigate(`/painel?booking=${booking.id}`)
     } catch {
       setErro('Não foi possível criar a contratação.')
@@ -155,29 +194,6 @@ export default function PerfilProfissional() {
         </div>
       )}
 
-      {prof.referenciasAprovadas?.length > 0 && (
-        <div className="card">
-          <h3>Referências de trabalho</h3>
-          <p style={{ fontSize: 12.5, color: 'var(--muted)', marginBottom: 12 }}>
-            Contatos de clientes que já atenderam a profissional, informados por
-            ela e confirmados pelo Zelo por telefone. A conferência da veracidade
-            é de responsabilidade de quem contrata — vale ligar e perguntar sobre
-            a experiência antes de decidir.
-          </p>
-          {prof.referenciasAprovadas.map((r, i) => (
-            <div key={i} style={{
-              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-              padding: '10px 0', borderBottom: i < prof.referenciasAprovadas.length - 1 ? '1px solid var(--line)' : 'none'
-            }}>
-              <span style={{ fontSize: 14, fontWeight: 600 }}>{r.nome_referencia}</span>
-              <a href={`tel:${r.telefone.replace(/\D/g, '')}`} style={{ fontSize: 14, color: 'var(--sage-700)' }}>
-                {r.telefone}
-              </a>
-            </div>
-          ))}
-        </div>
-      )}
-
       <Avaliacoes alvoId={prof.id} lado="cliente_avalia_prof" />
 
       <div style={{
@@ -196,14 +212,21 @@ export default function PerfilProfissional() {
           </span>
         </div>
         <div style={{ display: 'flex', gap: 9 }}>
-          <button className="btn ghost" onClick={contratar} disabled={contratando}>Conversar</button>
-          <button className="btn" onClick={contratar} disabled={contratando}>
+          <button className="btn ghost" onClick={aoClicarContratar} disabled={contratando}>Conversar</button>
+          <button className="btn" onClick={aoClicarContratar} disabled={contratando}>
             {contratando ? 'Enviando…' : 'Contratar'}
           </button>
         </div>
       </div>
 
       <AvisoIntermediacao />
+
+      <DisclaimerReferencia
+        aberto={disclaimerAberto}
+        enviando={contratando}
+        onCancelar={() => setDisclaimerAberto(false)}
+        onAceitar={(versao) => contratar(versao)}
+      />
     </main>
   )
 }

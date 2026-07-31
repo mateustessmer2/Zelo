@@ -212,15 +212,11 @@ export async function obterProfissional(id) {
   if (error) throw error
   if (!prof) return null
 
-  const [{ data: perfilRow }, { data: cats }, { data: bairs }, { data: servs }, { data: refsAprovadas }] = await Promise.all([
+  const [{ data: perfilRow }, { data: cats }, { data: bairs }, { data: servs }] = await Promise.all([
     supabase.from('perfis').select('nome, foto_url, cidade_id, bairro_id').eq('id', id).maybeSingle(),
     supabase.from('profissional_categorias').select('categoria_id').eq('profissional_id', id),
     supabase.from('profissional_bairros').select('bairro_id').eq('profissional_id', id),
-    supabase.from('profissional_servicos').select('servico_id').eq('profissional_id', id),
-    // Só as APROVADAS — a policy `ref_select_public_aprovadas` (migração
-    // 26) já filtra isso no banco, mas o `.eq` aqui deixa a intenção
-    // explícita e evita depender só do RLS para não vazar pendente.
-    supabase.from('referencias_trabalho').select('nome_referencia, telefone').eq('profissional_id', id).eq('status', 'aprovado')
+    supabase.from('profissional_servicos').select('servico_id').eq('profissional_id', id)
   ])
 
   const categoriaIds = (cats ?? []).map((c) => c.categoria_id)
@@ -245,7 +241,6 @@ export async function obterProfissional(id) {
     categorias: categoriasNomes ?? [],
     bairros: bairrosNomes ?? [],
     servicos: servicosNomes ?? [],
-    referenciasAprovadas: refsAprovadas ?? [],
     profissional_categorias: (categoriasNomes ?? []).map((c) => ({ categorias: c })),
     profissional_bairros: (bairrosNomes ?? []).map((b) => ({ bairros: b }))
   }
@@ -563,6 +558,34 @@ export function rotuloSelo(selo) {
  * nunca no perfil público nem para o cliente. O selo é o único reflexo
  * disso que qualquer outra pessoa enxerga.
  */
+/**
+ * Só a CONTAGEM de referências aprovadas de uma profissional — nunca o
+ * conteúdo (nome/telefone). Usada para decidir se mostra o disclaimer
+ * antes de contratar, sem revelar o contato em si: o dado só é entregue
+ * por e-mail, depois que o cliente aceita o disclaimer e contrata.
+ */
+/**
+ * Dispara o envio do contato de referência (primeiro nome + telefone) por
+ * e-mail ao cliente que acabou de contratar — só depois do disclaimer
+ * aceito. A Edge Function (`enviar-referencia`) é quem decide o conteúdo
+ * real: o frontend nunca lê nome/telefone da referência em si, só pede
+ * o envio e registra que o disclaimer foi aceito.
+ */
+export async function solicitarEnvioReferencia({ bookingId, versaoDisclaimer }) {
+  const { error } = await supabase.functions.invoke('enviar-referencia', {
+    body: { bookingId, versaoDisclaimer }
+  })
+  if (error) throw error
+}
+
+export async function contarReferenciasAprovadas(profissionalId) {
+  const { data, error } = await supabase.rpc('contar_referencias_aprovadas', {
+    p_profissional_id: profissionalId
+  })
+  if (error) throw error
+  return data ?? 0
+}
+
 export async function listarReferencias(profissionalId) {
   const { data, error } = await supabase
     .from('referencias_trabalho')
@@ -625,6 +648,50 @@ export async function decidirReferencia({ referenciaId, status, adminId, observa
     .eq('id', referenciaId)
   if (error) throw error
 }
+
+/**
+ * Referências já aprovadas — é aqui que o admin encontra o que bloquear.
+ * Diferente da fila de pendentes: esta lista é sobre decisão já tomada,
+ * potencialmente precisando ser revertida por reclamação da pessoa citada.
+ */
+export async function listarReferenciasAprovadas() {
+  const { data: refs, error } = await supabase
+    .from('referencias_trabalho')
+    .select('id, profissional_id, nome_referencia, telefone, bloqueada, bloqueada_em, bloqueada_motivo, verificado_em')
+    .eq('status', 'aprovado')
+    .order('verificado_em', { ascending: false })
+  if (error) throw error
+  if (!refs?.length) return []
+
+  const ids = [...new Set(refs.map((r) => r.profissional_id))]
+  const { data: perfis } = await supabase.from('perfis').select('id, nome').in('id', ids)
+  const nomePorId = Object.fromEntries((perfis ?? []).map((p) => [p.id, p.nome]))
+
+  return refs.map((r) => ({ ...r, profissional_nome: nomePorId[r.profissional_id] ?? '—' }))
+}
+
+/**
+ * Bloqueia ou desbloqueia uma referência já aprovada — para quando a
+ * pessoa citada como referência reclama de ter o contato dela usado sem
+ * autorização, ou pede para não ser mais indicada.
+ *
+ * Bloquear NÃO apaga a referência (ela continua existindo como registro
+ * de que foi aprovada uma vez), só para de ser divulgada e de contar
+ * para o selo — o trigger `trg_referencia_muda_selo` (migração 27)
+ * recalcula sozinho quando `bloqueada` muda.
+ */
+export async function bloquearReferencia({ referenciaId, bloqueada, motivo }) {
+  const { error } = await supabase
+    .from('referencias_trabalho')
+    .update({
+      bloqueada,
+      bloqueada_em: bloqueada ? new Date().toISOString() : null,
+      bloqueada_motivo: bloqueada ? motivo : null
+    })
+    .eq('id', referenciaId)
+  if (error) throw error
+}
+
 
 /**
  * Upload de documento sensível para o bucket PRIVADO.
