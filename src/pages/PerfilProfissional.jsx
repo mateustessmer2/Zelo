@@ -105,8 +105,7 @@ export default function PerfilProfissional() {
           </div>
           {prof.selo && (
             <p style={{ fontSize: 12, color: 'var(--muted)', marginTop: 6, maxWidth: 380 }}>
-              O Zelo facilita o acesso às referências informadas pela profissional.
-              A conferência é de responsabilidade de quem contrata.
+              Selo por referências de trabalho confirmadas — veja os contatos abaixo.
             </p>
           )}
         </div>
@@ -153,6 +152,29 @@ export default function PerfilProfissional() {
               <span className="chip" style={{ cursor: 'default' }}>{prof.servico_outro}</span>
             )}
           </div>
+        </div>
+      )}
+
+      {prof.referenciasAprovadas?.length > 0 && (
+        <div className="card">
+          <h3>Referências de trabalho</h3>
+          <p style={{ fontSize: 12.5, color: 'var(--muted)', marginBottom: 12 }}>
+            Contatos de clientes que já atenderam a profissional, informados por
+            ela e confirmados pelo Zelo por telefone. A conferência da veracidade
+            é de responsabilidade de quem contrata — vale ligar e perguntar sobre
+            a experiência antes de decidir.
+          </p>
+          {prof.referenciasAprovadas.map((r, i) => (
+            <div key={i} style={{
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              padding: '10px 0', borderBottom: i < prof.referenciasAprovadas.length - 1 ? '1px solid var(--line)' : 'none'
+            }}>
+              <span style={{ fontSize: 14, fontWeight: 600 }}>{r.nome_referencia}</span>
+              <a href={`tel:${r.telefone.replace(/\D/g, '')}`} style={{ fontSize: 14, color: 'var(--sage-700)' }}>
+                {r.telefone}
+              </a>
+            </div>
+          ))}
         </div>
       )}
 
