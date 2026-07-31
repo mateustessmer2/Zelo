@@ -212,11 +212,15 @@ export async function obterProfissional(id) {
   if (error) throw error
   if (!prof) return null
 
-  const [{ data: perfilRow }, { data: cats }, { data: bairs }, { data: servs }] = await Promise.all([
+  const [{ data: perfilRow }, { data: cats }, { data: bairs }, { data: servs }, { data: refsAprovadas }] = await Promise.all([
     supabase.from('perfis').select('nome, foto_url, cidade_id, bairro_id').eq('id', id).maybeSingle(),
     supabase.from('profissional_categorias').select('categoria_id').eq('profissional_id', id),
     supabase.from('profissional_bairros').select('bairro_id').eq('profissional_id', id),
-    supabase.from('profissional_servicos').select('servico_id').eq('profissional_id', id)
+    supabase.from('profissional_servicos').select('servico_id').eq('profissional_id', id),
+    // Só as APROVADAS — a policy `ref_select_public_aprovadas` (migração
+    // 26) já filtra isso no banco, mas o `.eq` aqui deixa a intenção
+    // explícita e evita depender só do RLS para não vazar pendente.
+    supabase.from('referencias_trabalho').select('nome_referencia, telefone').eq('profissional_id', id).eq('status', 'aprovado')
   ])
 
   const categoriaIds = (cats ?? []).map((c) => c.categoria_id)
@@ -241,6 +245,7 @@ export async function obterProfissional(id) {
     categorias: categoriasNomes ?? [],
     bairros: bairrosNomes ?? [],
     servicos: servicosNomes ?? [],
+    referenciasAprovadas: refsAprovadas ?? [],
     profissional_categorias: (categoriasNomes ?? []).map((c) => ({ categorias: c })),
     profissional_bairros: (bairrosNomes ?? []).map((b) => ({ bairros: b }))
   }
