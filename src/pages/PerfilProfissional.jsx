@@ -178,6 +178,18 @@ export default function PerfilProfissional() {
         <Linha k="Meio turno (4h)" v={prof.valor_meio_turno ? `R$ ${prof.valor_meio_turno}` : '—'} />
         <Linha k="Turno integral (8h)" v={prof.valor_diaria ? `R$ ${prof.valor_diaria}` : '—'} />
         {prof.valor_km && <Linha k="Valor por km rodado" v={`R$ ${prof.valor_km}`} />}
+        {(prof.veiculo_modelo || prof.veiculo_ano) && (
+          <Linha
+            k="Veículo"
+            v={[prof.veiculo_modelo, prof.veiculo_ano].filter(Boolean).join(' · ')}
+          />
+        )}
+        {prof.categorias?.some((c) => c.nome === 'Motorista Particular') && (
+          <Linha
+            k="Área de atendimento"
+            v={prof.atende_intermunicipal ? 'Município e intermunicipal' : 'Só dentro do município'}
+          />
+        )}
       </div>
 
       {(prof.servicos?.length > 0 || prof.servico_outro) && (
