@@ -1,178 +1,151 @@
 // ============================================================================
-// EDGE FUNCTION — notificar-booking
+// EDGE FUNCTION — enviar-referencia
 // ----------------------------------------------------------------------------
-// Dispara duas mensagens de WhatsApp quando um pedido é criado:
-//   1. para a profissional  — "você tem um pedido novo"
-//   2. para o admin (você)  — cópia, para acompanhar sem abrir o painel
+// Envia por e-mail ao cliente o contato (primeiro nome + telefone) de uma
+// referência de trabalho aprovada da profissional que ele acabou de
+// contratar. Chamada pelo FRONTEND (supabase.functions.invoke), não por
+// webhook — o disparo depende do aceite explícito do disclaimer, que é
+// uma ação do usuário, não um evento puro de banco.
 //
-// COMO É CHAMADA
-// Por um Database Webhook do Supabase, configurado no painel:
-//   Database → Webhooks → Create → tabela `bookings`, evento INSERT,
-//   tipo "Supabase Edge Functions", função `notificar-booking`.
+// POR QUE A LÓGICA REAL PRECISA VIVER AQUI, E NÃO NO FRONTEND
 //
-// POR QUE EDGE FUNCTION, E NÃO CHAMAR A META DIRETO DO APP
-// O token da Meta não pode ficar no frontend — qualquer pessoa leria o
-// código e passaria a enviar mensagens em nome do Zelo. Aqui ele vive como
-// secret no servidor, e o navegador nunca o vê.
+// O cliente nunca deve ler nome/telefone da referência antes deste
+// momento — nem via RLS, nem via alguma query "adiantada". Esta função
+// roda com service role e é o ÚNICO lugar que lê `referencias_trabalho`
+// para entregar ao cliente. Ela reconfirma tudo que o frontend já
+// checou (existe referência aprovada, o booking é do cliente que está
+// pedindo) antes de enviar — nunca confia cegamente no que o app mandou.
 //
-// SECRETS NECESSÁRIOS (Supabase → Edge Functions → Secrets)
-//   WHATSAPP_TOKEN        token permanente da Meta
-//   WHATSAPP_PHONE_ID     Phone Number ID (não é o telefone, é um id numérico)
-//   ADMIN_WHATSAPP        seu número, formato 5553999999999
-//   SUPABASE_URL          já existe por padrão
-//   SUPABASE_SERVICE_ROLE_KEY  já existe por padrão
-//
-// TEMPLATES — precisam estar APROVADOS na Meta antes de funcionar.
-// Os nomes esperados aqui são `pedido_novo_profissional` e `pedido_novo_admin`.
-// O texto de cada um está no comentário de `montarMensagem` abaixo.
+// SECRETS (os mesmos já usados pelas outras funções)
+//   RESEND_API_KEY
+//   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY (padrão)
 // ============================================================================
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-const WHATSAPP_TOKEN = Deno.env.get('WHATSAPP_TOKEN')
-const WHATSAPP_PHONE_ID = Deno.env.get('WHATSAPP_PHONE_ID')
-const ADMIN_WHATSAPP = Deno.env.get('ADMIN_WHATSAPP')
+const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')
+const REMETENTE = 'Zelo <contato@zeloemcasa.com.br>'
 
 const supabase = createClient(
   Deno.env.get('SUPABASE_URL')!,
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 )
 
-/** Normaliza para o formato que a Meta espera: 55 + DDD + número, só dígitos. */
-function normalizarTelefone(bruto: string | null): string | null {
-  if (!bruto) return null
-  const digitos = bruto.replace(/\D/g, '')
-  if (digitos.length < 10) return null
-  // Já tem código do país
-  if (digitos.startsWith('55') && digitos.length >= 12) return digitos
-  return `55${digitos}`
-}
-
-const TURNOS: Record<string, string> = {
-  manha: 'manhã',
-  tarde: 'tarde',
-  noite: 'noite',
-  integral: 'turno integral (manhã+tarde)'
-}
-
-/**
- * Envia um template aprovado.
- *
- * Categoria "utilidade" (aviso transacional) — a mais barata, e a correta
- * para este caso. Marketing custaria ~10x e seria classificação errada.
- */
-async function enviarTemplate(para: string, template: string, params: string[]) {
-  const resp = await fetch(
-    `https://graph.facebook.com/v21.0/${WHATSAPP_PHONE_ID}/messages`,
-    {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${WHATSAPP_TOKEN}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        messaging_product: 'whatsapp',
-        to: para,
-        type: 'template',
-        template: {
-          name: template,
-          language: { code: 'pt_BR' },
-          components: [
-            {
-              type: 'body',
-              parameters: params.map((text) => ({ type: 'text', text }))
-            }
-          ]
-        }
-      })
-    }
-  )
-
+async function enviarEmail(destinatario: string, assunto: string, corpoHtml: string) {
+  const resp = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${RESEND_API_KEY}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      from: REMETENTE,
+      to: [destinatario],
+      subject: assunto,
+      html: corpoHtml
+    })
+  })
   const corpo = await resp.json()
-  if (!resp.ok) {
-    throw new Error(`Meta ${resp.status}: ${JSON.stringify(corpo)}`)
-  }
+  if (!resp.ok) throw new Error(`Resend ${resp.status}: ${JSON.stringify(corpo)}`)
   return corpo
+}
+
+/** Só o primeiro nome — nunca o completo, para reduzir identificabilidade
+ *  da referência no e-mail. */
+function primeiroNome(nomeCompleto: string) {
+  return (nomeCompleto ?? '').trim().split(/\s+/)[0] ?? 'Contato'
 }
 
 Deno.serve(async (req) => {
   try {
-    const payload = await req.json()
-    const booking = payload.record ?? payload
+    // A invocação via supabase.functions.invoke já inclui o token da
+    // sessão do usuário no header Authorization. Extraímos o id do
+    // cliente a partir dele — não confiamos em um `clienteId` vindo do
+    // corpo da requisição, que poderia ser forjado.
+    const authHeader = req.headers.get('Authorization') ?? ''
+    const token = authHeader.replace('Bearer ', '')
+    const { data: userData, error: userErr } = await supabase.auth.getUser(token)
+    if (userErr || !userData?.user) {
+      return new Response(JSON.stringify({ erro: 'não autenticado' }), { status: 401 })
+    }
+    const clienteId = userData.user.id
 
-    if (!booking?.id) {
-      return new Response(JSON.stringify({ erro: 'sem booking' }), { status: 400 })
+    const { bookingId, versaoDisclaimer } = await req.json()
+    if (!bookingId || !versaoDisclaimer) {
+      return new Response(JSON.stringify({ erro: 'bookingId e versaoDisclaimer são obrigatórios' }), { status: 400 })
     }
 
-    // Busca os dados com service role: o RLS não se aplica aqui, e é
-    // proposital — a função precisa ler o telefone das duas partes.
-    const [{ data: profissional }, { data: cliente }, { data: categoria }, { data: bairro }, { data: contato }] =
-      await Promise.all([
-        supabase.from('perfis').select('nome').eq('id', booking.profissional_id).maybeSingle(),
-        supabase.from('perfis').select('nome').eq('id', booking.cliente_id).maybeSingle(),
-        supabase.from('categorias').select('nome').eq('id', booking.categoria_id).maybeSingle(),
-        booking.bairro_id
-          ? supabase.from('bairros').select('nome').eq('id', booking.bairro_id).maybeSingle()
-          : Promise.resolve({ data: null }),
-        supabase.from('contatos').select('telefone, whatsapp').eq('perfil_id', booking.profissional_id).maybeSingle()
-      ])
+    // Confirma que o booking existe e pertence a ESTE cliente — nunca
+    // confia no id vindo do frontend sem checar contra o dono real.
+    const { data: booking } = await supabase
+      .from('bookings')
+      .select('id, cliente_id, profissional_id')
+      .eq('id', bookingId)
+      .maybeSingle()
 
-    const dataBR = new Date(`${booking.data_servico}T12:00:00`).toLocaleDateString('pt-BR')
-    const turno = TURNOS[booking.turno] ?? booking.turno ?? '—'
-    const nomeProf = profissional?.nome ?? 'profissional'
-    const nomeCliente = cliente?.nome ?? 'um cliente'
-    const servico = categoria?.nome ?? 'serviço'
-    const local = bairro?.nome ?? 'Pelotas'
-
-    const resultados: Record<string, string> = {}
-
-    // ---- 1. Profissional -----------------------------------------------
-    // Template `pedido_novo_profissional`, corpo esperado:
-    // "Oi {{1}}! Você recebeu um pedido de {{2}} para {{3}} no dia {{4}},
-    //  {{5}}, no bairro {{6}}. Abra o Zelo para aceitar ou recusar."
-    const telProf = normalizarTelefone(contato?.whatsapp ?? contato?.telefone ?? null)
-    if (telProf) {
-      try {
-        await enviarTemplate(telProf, 'pedido_novo_profissional', [
-          nomeProf, nomeCliente, servico, dataBR, turno, local
-        ])
-        resultados.profissional = 'enviado'
-      } catch (e) {
-        resultados.profissional = `falhou: ${e.message}`
-      }
-    } else {
-      resultados.profissional = 'sem telefone cadastrado'
+    if (!booking || booking.cliente_id !== clienteId) {
+      return new Response(JSON.stringify({ erro: 'booking inválido para este cliente' }), { status: 403 })
     }
 
-    // ---- 2. Admin --------------------------------------------------------
-    // Template `pedido_novo_admin`, corpo esperado:
-    // "Novo pedido no Zelo: {{1}} pediu {{2}} para {{3}} em {{4}}, {{5}}.
-    //  Profissional: {{6}}."
-    const telAdmin = normalizarTelefone(ADMIN_WHATSAPP ?? null)
-    if (telAdmin) {
-      try {
-        await enviarTemplate(telAdmin, 'pedido_novo_admin', [
-          nomeCliente, servico, dataBR, local, turno, nomeProf
-        ])
-        resultados.admin = 'enviado'
-      } catch (e) {
-        resultados.admin = `falhou: ${e.message}`
-      }
-    } else {
-      resultados.admin = 'ADMIN_WHATSAPP não configurado'
+    // Busca a referência mais recentemente aprovada e não bloqueada.
+    // Se houver mais de uma, envia só a primeira — o e-mail cita "uma
+    // referência", não é uma lista.
+    const { data: referencia } = await supabase
+      .from('referencias_trabalho')
+      .select('id, nome_referencia, telefone')
+      .eq('profissional_id', booking.profissional_id)
+      .eq('status', 'aprovado')
+      .eq('bloqueada', false)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    if (!referencia) {
+      // Pode acontecer se a referência foi bloqueada pelo admin entre o
+      // momento em que a tela carregou a contagem e o clique em
+      // contratar — não é erro do cliente, só não há o que enviar agora.
+      return new Response(JSON.stringify({ ok: true, ignorado: 'nenhuma referência disponível no momento' }), {
+        headers: { 'Content-Type': 'application/json' }
+      })
     }
 
-    // Registra o resultado. Sem isto, uma falha de envio some sem deixar
-    // rastro — e você só descobriria pela profissional reclamando que
-    // nunca foi avisada.
-    await supabase.from('notificacoes_log').insert({
+    const { data: emailCliente } = await supabase.auth.admin.getUserById(clienteId)
+    const destino = emailCliente?.user?.email
+    if (!destino) {
+      return new Response(JSON.stringify({ erro: 'e-mail do cliente não encontrado' }), { status: 500 })
+    }
+
+    const html = `
+      <p>Você contratou um serviço pelo Zelo. Conforme informado antes de
+      confirmar, aqui está o contato de uma referência de trabalho
+      confirmada da profissional:</p>
+      <ul>
+        <li><b>Nome:</b> ${primeiroNome(referencia.nome_referencia)}</li>
+        <li><b>Telefone:</b> ${referencia.telefone}</li>
+      </ul>
+      <p>Use este contato apenas para confirmar a experiência relatada,
+      sob sua responsabilidade — conforme você concordou antes de
+      contratar.</p>
+    `
+
+    let resultado = 'enviado'
+    try {
+      await enviarEmail(destino, 'Referência de trabalho — Zelo', html)
+    } catch (e) {
+      resultado = `falhou: ${e.message}`
+    }
+
+    // Log de divulgação: registra que ESTE cliente recebeu ESTA
+    // referência, quando, e que aceitou o disclaimer — parte do dever de
+    // prestar contas do tratamento de dado de terceiro (migração 27).
+    await supabase.from('divulgacoes_referencia').insert({
+      referencia_id: referencia.id,
       booking_id: booking.id,
-      canal: 'whatsapp',
-      destino_profissional: resultados.profissional,
-      destino_admin: resultados.admin
+      cliente_id: clienteId,
+      aceitou_disclaimer: true
     })
 
-    return new Response(JSON.stringify({ ok: true, resultados }), {
+    return new Response(JSON.stringify({ ok: true, resultado }), {
       headers: { 'Content-Type': 'application/json' }
     })
   } catch (e) {

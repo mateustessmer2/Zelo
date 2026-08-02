@@ -273,10 +273,10 @@ export default function Cadastro() {
               <circle cx="12" cy="12" r="10" /><path d="M12 8v4M12 16h.01" />
             </svg>
             <p>
-              <b>Próximo passo: verificação.</b> Depois do cadastro você envia
-              documento de identidade e uma selfie. Seu perfil entra na busca
-              automaticamente assim que os dois forem aprovados. Seus documentos
-              ficam privados — clientes veem apenas o selo de identidade confirmada.
+              <b>Próximo passo: verificação.</b> Depois do cadastro você envia documento de
+              identidade e uma selfie. Seu perfil entra na busca automaticamente
+              assim que os três forem aprovados. Seus documentos ficam privados — clientes veem
+              apenas o selo de identidade confirmada.
             </p>
           </div>
         )}
