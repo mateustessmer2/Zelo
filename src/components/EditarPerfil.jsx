@@ -26,6 +26,9 @@ export default function EditarPerfil({ onSalvo }) {
   const [valorMeioTurno, setValorMeioTurno] = useState('')
   const [valorKm, setValorKm] = useState('')
   const [valorDiaria, setValorDiaria] = useState('')
+  const [atendeIntermunicipal, setAtendeIntermunicipal] = useState(false)
+  const [veiculoModelo, setVeiculoModelo] = useState('')
+  const [veiculoAno, setVeiculoAno] = useState('')
   const [telefone, setTelefone] = useState('')
   const [whatsapp, setWhatsapp] = useState('')
 
@@ -35,8 +38,19 @@ export default function EditarPerfil({ onSalvo }) {
   // Motorista cobra por km, não por turno — o campo de valor correspondente
   // só faz sentido aparecer quando essa categoria está entre as marcadas.
   const ehMotorista = categorias.some((c) => c.slug === 'motorista-particular' && catSel.includes(c.id))
-  const categoriaLimpeza = categorias.find((c) => c.slug === 'limpeza-residencial')
-  const ehLimpeza = !!categoriaLimpeza && catSel.includes(categoriaLimpeza.id)
+
+  // Categorias com subopções marcáveis (serviços específicos dentro dela).
+  // Generalizado a partir da migração 23 (que só cobria Limpeza
+  // Residencial): agora qualquer categoria com linhas em
+  // `servicos_disponiveis` — hoje Limpeza Residencial e Cuidador
+  // Domiciliar/Hospitalar (migração 28) — mostra a lista, sem precisar
+  // de mais um flag específico por categoria a cada nova que ganhar
+  // subopções.
+  const SLUGS_COM_SUBOPCOES = ['limpeza-residencial', 'cuidador-domiciliar-hospitalar']
+  const categoriaComSubopcoes = categorias.find(
+    (c) => SLUGS_COM_SUBOPCOES.includes(c.slug) && catSel.includes(c.id)
+  )
+  const temSubopcoes = !!categoriaComSubopcoes
   const [servicosDisponiveis, setServicosDisponiveis] = useState([])
   const [servicosSel, setServicosSel] = useState([])
   const [servicoOutro, setServicoOutro] = useState('')
@@ -80,6 +94,9 @@ export default function EditarPerfil({ onSalvo }) {
         setEspecialidades((prof.especialidades ?? []).join(', '))
         setValorMeioTurno(prof.valor_meio_turno ?? '')
         setValorKm(prof.valor_km ?? '')
+        setAtendeIntermunicipal(!!prof.atende_intermunicipal)
+        setVeiculoModelo(prof.veiculo_modelo ?? '')
+        setVeiculoAno(prof.veiculo_ano ?? '')
         setValorDiaria(prof.valor_diaria ?? '')
         setAtendeTodos(!!prof.atende_todos_bairros)
         setServicoOutro(prof.servico_outro ?? '')
@@ -109,16 +126,16 @@ export default function EditarPerfil({ onSalvo }) {
     return () => { ativo = false }
   }, [perfil?.id])
 
-  // Serviços específicos só fazem sentido depois que sabemos se a
-  // categoria de limpeza está entre as marcadas — por isso um efeito
-  // separado, disparado quando `categoriaLimpeza` é resolvida (assim
-  // que a lista de categorias carrega).
+  // Serviços específicos só fazem sentido depois que sabemos se ALGUMA
+  // categoria com subopções está entre as marcadas — por isso um efeito
+  // separado, disparado quando `categoriaComSubopcoes` é resolvida
+  // (assim que a lista de categorias carrega).
   useEffect(() => {
-    if (!perfil?.id || !categoriaLimpeza) return
+    if (!perfil?.id || !categoriaComSubopcoes) return
     let ativo = true
 
     Promise.all([
-      listarServicosDisponiveis(categoriaLimpeza.id).catch(() => []),
+      listarServicosDisponiveis(categoriaComSubopcoes.id).catch(() => []),
       obterServicosSelecionados(perfil.id).catch(() => [])
     ]).then(([disponiveis, selecionados]) => {
       if (!ativo) return
@@ -127,7 +144,7 @@ export default function EditarPerfil({ onSalvo }) {
     })
 
     return () => { ativo = false }
-  }, [perfil?.id, categoriaLimpeza?.id])
+  }, [perfil?.id, categoriaComSubopcoes?.id])
 
   function alternar(lista, setLista, id) {
     setLista(lista.includes(id) ? lista.filter((x) => x !== id) : [...lista, id])
@@ -164,15 +181,18 @@ export default function EditarPerfil({ onSalvo }) {
         valor_meio_turno: valorMeioTurno ? Number(valorMeioTurno) : null,
         valor_diaria: valorDiaria ? Number(valorDiaria) : null,
         valor_km: valorKm ? Number(valorKm) : null,
+        atende_intermunicipal: ehMotorista ? atendeIntermunicipal : false,
+        veiculo_modelo: ehMotorista && veiculoModelo.trim() ? veiculoModelo.trim() : null,
+        veiculo_ano: ehMotorista && veiculoAno ? Number(veiculoAno) : null,
         atende_todos_bairros: atendeTodos,
-        servico_outro: ehLimpeza && servicoOutro.trim() ? servicoOutro.trim() : null
+        servico_outro: temSubopcoes && servicoOutro.trim() ? servicoOutro.trim() : null
       })
       await definirCategorias(perfil.id, catSel)
-      // Serviços específicos só se aplicam à categoria de limpeza; se ela
-      // for desmarcada, os vínculos ficam órfãos no banco (a tabela não é
-      // limpa aqui) — inofensivo, porque a tela nunca os exibiria de novo
-      // sem essa categoria marcada.
-      if (ehLimpeza) await definirServicos(perfil.id, servicosSel)
+      // Serviços específicos só se aplicam a categorias com subopções; se
+      // a categoria for desmarcada, os vínculos ficam órfãos no banco (a
+      // tabela não é limpa aqui) — inofensivo, porque a tela nunca os
+      // exibiria de novo sem essa categoria marcada.
+      if (temSubopcoes) await definirServicos(perfil.id, servicosSel)
       // Bairros marcados individualmente só importam quando "atende todos"
       // está desligado — mas gravamos do jeito que estiver na tela, sem
       // apagar o histórico de bairros caso ela desmarque depois.
@@ -360,7 +380,48 @@ export default function EditarPerfil({ onSalvo }) {
         </p>
       </div>
 
-      {ehLimpeza && (
+      {ehMotorista && (
+        <div className="card" style={{ marginBottom: 18 }}>
+          <h3>Área de atendimento e veículo</h3>
+
+          <div className="field">
+            <label>Você faz corrida entre cidades (intermunicipal)?</label>
+            <div className="chips">
+              <button
+                type="button"
+                className={`chip ${!atendeIntermunicipal ? 'on' : ''}`}
+                onClick={() => setAtendeIntermunicipal(false)}
+              >Só dentro do município</button>
+              <button
+                type="button"
+                className={`chip ${atendeIntermunicipal ? 'on' : ''}`}
+                onClick={() => setAtendeIntermunicipal(true)}
+              >Também intermunicipal</button>
+            </div>
+          </div>
+
+          <div className="row" style={{ marginTop: 14 }}>
+            <div className="field">
+              <label htmlFor="veic-modelo">Modelo do carro</label>
+              <input
+                id="veic-modelo" value={veiculoModelo}
+                onChange={(e) => setVeiculoModelo(e.target.value)}
+                placeholder="Ex.: Chevrolet Onix"
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="veic-ano">Ano</label>
+              <input
+                id="veic-ano" type="number" value={veiculoAno}
+                onChange={(e) => setVeiculoAno(e.target.value)}
+                placeholder="Ex.: 2020"
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {temSubopcoes && (
         <div className="card" style={{ marginBottom: 18 }}>
           <h3>Quais serviços você oferece?</h3>
           <p style={{ fontSize: 12.5, color: 'var(--muted)', marginBottom: 12 }}>
