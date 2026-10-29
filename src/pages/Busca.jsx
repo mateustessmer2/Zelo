@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { useSearchParams, useNavigate, Link } from 'react-router-dom'
 import { listarCidadesAtivas, listarBairros, listarCategoriasAtivas, buscarProfissionais } from '../lib/api'
 import SeloReferencias from '../components/SeloReferencias'
+import SeloAntecedentes from '../components/SeloAntecedentes'
+import Avatar from '../components/Avatar'
 
 /**
  * Fluxo do cliente: categoria → bairro → data → turno → observação → resultados.
@@ -81,40 +83,56 @@ export default function Busca() {
           </div>
         ) : (
           resultados.map((p) => (
-            <div key={p.id} className="card" style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
-              <div className="avatar">{p.perfis?.nome?.[0] ?? '?'}</div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                  <span style={{ fontWeight: 600, fontSize: 16, color: 'var(--sage-900)' }}>{p.perfis?.nome}</span>
-                  <span className="seal hi">✓ Identidade confirmada</span>
-                  <SeloReferencias selo={p.selo} tamanho="pequeno" />
-                </div>
-                <div style={{ fontSize: 13, color: 'var(--muted)', marginTop: 3 }}>
-                  {p.atende_todos_bairros
-                    ? 'Atende todos os bairros'
-                    : p.profissional_bairros?.map((b) => b.bairros?.nome).filter(Boolean).join(', ')}
-                </div>
-                {p.tempo_resposta_min && (
-                  <div style={{ fontSize: 12.5, color: 'var(--sage-700)', marginTop: 8 }}>
-                    responde em <b>{p.tempo_resposta_min} min</b>
+            <div key={p.id} className="card" style={{ padding: '18px 18px 16px' }}>
+              <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
+                <Avatar nome={p.perfis?.nome} foto={p.perfis?.foto_url} />
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontFamily: "'Fraunces',serif", fontWeight: 500, fontSize: 20, color: 'var(--sage-900)', lineHeight: 1.2 }}>
+                    {p.perfis?.nome}
                   </div>
-                )}
+                  <div style={{ fontSize: 13, color: 'var(--muted)', marginTop: 3 }}>
+                    {p.atende_todos_bairros
+                      ? 'Atende todos os bairros'
+                      : p.profissional_bairros?.map((b) => b.bairros?.nome).filter(Boolean).join(', ')}
+                  </div>
+                </div>
               </div>
-              <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                {(p.valor_km || (turno === 'integral' ? p.valor_diaria : p.valor_meio_turno)) && (
-                  <div>
-                    <span style={{ fontFamily: "'Fraunces',serif", fontWeight: 600, fontSize: 19, color: 'var(--sage-900)' }}>
-                      R$ {p.valor_km ?? (turno === 'integral' ? p.valor_diaria : p.valor_meio_turno)}
-                    </span>
-                    <span style={{ fontSize: 12, color: 'var(--muted)' }}>
-                      {p.valor_km ? '/km' : (turno === 'integral' ? '/turno integral' : '/meio turno')}
-                    </span>
-                  </div>
-                )}
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginTop: 12 }}>
+                <span className="seal hi">✓ Identidade verificada</span>
+                {p.declaracao_antecedentes && <SeloAntecedentes pequeno />}
+                <SeloReferencias selo={p.selo} tamanho="pequeno" />
+              </div>
+
+              <div style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
+                marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--line)'
+              }}>
+                <div>
+                  {(() => {
+                    const valorTurno = turno === 'integral' ? p.valor_diaria : p.valor_meio_turno
+                    const [valor, unidade] = p.valor_km ? [p.valor_km, '/km']
+                      : valorTurno ? [valorTurno, turno === 'integral' ? '/turno integral' : '/meio turno']
+                      : p.valor_sessao_avulsa ? [p.valor_sessao_avulsa, '/sessão']
+                      : [null, null]
+                    if (!valor) return null
+                    return (
+                      <div>
+                        <span style={{ fontFamily: "'Fraunces',serif", fontWeight: 600, fontSize: 19, color: 'var(--sage-900)' }}>R$ {valor}</span>
+                        <span style={{ fontSize: 12, color: 'var(--muted)' }}>{unidade}</span>
+                      </div>
+                    )
+                  })()}
+                  {p.tempo_resposta_min && (
+                    <div style={{ fontSize: 12.5, color: 'var(--sage-700)', marginTop: 2 }}>
+                      responde em <b>{p.tempo_resposta_min} min</b>
+                    </div>
+                  )}
+                </div>
                 <Link
                   to={`/profissional/${p.id}?bairro=${bairroId}&data=${data}&turno=${turno}`}
-                  className="btn dark sm"
-                  style={{ marginTop: 8 }}
+                  className="btn sm"
+                  style={{ flexShrink: 0 }}
                 >Ver perfil</Link>
               </div>
             </div>

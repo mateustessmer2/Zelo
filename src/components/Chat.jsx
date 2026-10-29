@@ -87,7 +87,7 @@ export default function Chat({ booking, outraParteId, outraParteNome }) {
               style={{
                 maxWidth: '78%', padding: '10px 14px', borderRadius: 15,
                 fontSize: 13.5, marginBottom: 9, lineHeight: 1.45,
-                background: minha ? 'var(--sage-900)' : 'var(--paper)',
+                background: minha ? 'var(--selecionado)' : 'var(--paper)',
                 color: minha ? '#fff' : 'var(--ink)',
                 border: minha ? 'none' : '1px solid var(--line)',
                 marginLeft: minha ? 'auto' : 0,

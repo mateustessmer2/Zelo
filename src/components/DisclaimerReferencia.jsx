@@ -1,96 +1,122 @@
 import { useState } from 'react'
 
 /** Versão do texto — suba ao alterar qualquer palavra do disclaimer. */
-export const VERSAO_DISCLAIMER_REFERENCIA = '2026-10-29'
+export const VERSAO_DISCLAIMER_REFERENCIA = '2026-10-29.2'
 
 /**
- * Disclaimer exibido antes de enviar o contato de referência por e-mail.
+ * Aviso exibido antes de contratar uma profissional que tem referências
+ * de trabalho confirmadas.
  *
- * Só aparece quando a profissional TEM referência aprovada (a contagem
- * vem de `contarReferenciasAprovadas`, que nunca revela o conteúdo em si
- * — só o número). Aceitar aqui é o que autoriza o envio do e-mail com
- * nome e telefone parciais.
+ * É uma "fricção positiva": um passo a mais de propósito, curto e claro,
+ * que explica o que o cliente vai receber (nomes e telefones PARCIAIS),
+ * por que vem mascarado (privacidade de quem indicou) e o que pode e não
+ * pode fazer com isso. Aceitar aqui autoriza o envio do e-mail-resumo.
  *
- * O texto precisa deixar claro que o contato é para conferência da
- * contratação, não para uso livre — é a barreira legal pedida
- * explicitamente contra divulgação ou uso indevido de dado de terceiro.
+ * O trecho da LGPD continua — é a barreira legal contra uso indevido de
+ * dado de terceiro —, só que mais curto e depois do essencial.
  */
-export default function DisclaimerReferencia({ aberto, onAceitar, onCancelar, enviando }) {
+export default function DisclaimerReferencia({ aberto, onAceitar, onCancelar, enviando, quantidade }) {
   const [marcado, setMarcado] = useState(false)
 
   if (!aberto) return null
 
+  const qtd = quantidade > 1 ? `${quantidade} referências confirmadas` : 'referência confirmada'
+
   return (
     <div
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="titulo-disclaimer-ref"
-      onClick={onCancelar}
-      style={{
-        position: 'fixed', inset: 0, background: 'rgba(20,26,22,.45)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        padding: 20, zIndex: 60
-      }}
+      role="dialog" aria-modal="true" aria-labelledby="titulo-disclaimer-ref"
+      className="modal-fundo" onClick={onCancelar}
     >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          background: 'var(--paper)', borderRadius: 16, padding: '24px 22px',
-          maxWidth: 440, width: '100%', maxHeight: '85vh', overflowY: 'auto'
-        }}
-      >
-        <h3 id="titulo-disclaimer-ref" style={{ marginTop: 0, marginBottom: 12 }}>
-          Antes de continuar
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-icone" aria-hidden="true">
+          <Cadeado tamanho={22} />
+        </div>
+
+        <h3 id="titulo-disclaimer-ref" style={{ fontFamily: "'Fraunces',serif", fontSize: 21, fontWeight: 500, marginBottom: 8 }}>
+          Referências protegidas
         </h3>
-
-        <p style={{ fontSize: 14, lineHeight: 1.6, marginBottom: 14 }}>
-          Esta profissional tem referência de trabalho confirmada pelo Zelo.
-          Ao contratar, você receberá por e-mail um resumo das referências,
-          com nome e telefone parciais. Para mais informações, fale direto
-          com a profissional que fez as indicações.
+        <p style={{ fontSize: 14.5, lineHeight: 1.55, color: 'var(--muted)', marginBottom: 18 }}>
+          Esta profissional tem {qtd} pela equipe do Zelo. Ao contratar, você
+          recebe um resumo por e-mail.
         </p>
 
-        <p style={{ fontSize: 13.5, lineHeight: 1.6, color: 'var(--muted)', marginBottom: 14 }}>
-          Esse contato é de uma pessoa física, fornecido para esta finalidade
-          específica. <b>A divulgação desse contato a terceiros, ou seu uso
-          para qualquer finalidade diferente da conferência da contratação,
-          pode configurar violação da Lei Geral de Proteção de Dados (Lei nº
-          13.709/2018) e sujeitar quem o fizer às responsabilidades civil e
-          criminal cabíveis.</b>
-        </p>
+        <ul className="lista-icones">
+          <li>
+            <Cadeado tamanho={17} />
+            <span>
+              <b>Dados parciais, para proteger quem indicou:</b> você vê o
+              primeiro nome e o final do telefone — por exemplo, <i>Ana L.</i> e{' '}
+              <i>(53) •••••••-34</i>.
+            </span>
+          </li>
+          <li>
+            <Conversa />
+            <span>
+              Para saber mais sobre uma referência, fale <b>direto com a
+              profissional</b>, que fez as indicações.
+            </span>
+          </li>
+          <li>
+            <Registro />
+            <span>O envio fica registrado pelo Zelo, com data e contratação.</span>
+          </li>
+        </ul>
 
-        <p style={{ fontSize: 12.5, color: 'var(--muted)', marginBottom: 18 }}>
-          O envio deste contato é registrado pelo Zelo, incluindo a data e a
-          contratação relacionada.
+        <p style={{
+          fontSize: 12.5, lineHeight: 1.55, color: 'var(--muted)', marginBottom: 18,
+          background: 'var(--cream)', borderRadius: 10, padding: '10px 12px'
+        }}>
+          Os dados de quem indicou são usados só para conferir esta contratação.
+          Divulgá-los ou usá-los para outro fim pode violar a LGPD (Lei nº
+          13.709/2018) e gerar responsabilidade civil e criminal.
         </p>
 
         <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer', marginBottom: 18 }}>
           <input
-            type="checkbox"
-            checked={marcado}
-            onChange={(e) => setMarcado(e.target.checked)}
-            style={{ width: 18, height: 18, marginTop: 2, flexShrink: 0 }}
+            type="checkbox" checked={marcado} onChange={(e) => setMarcado(e.target.checked)}
+            style={{ width: 19, height: 19, marginTop: 1, flexShrink: 0, accentColor: 'var(--sage-900)' }}
           />
-          <span style={{ fontSize: 13.5, fontWeight: 600, lineHeight: 1.45 }}>
-            Li e entendo que devo usar este contato apenas para conferir a
-            contratação, sob minha responsabilidade.
+          <span style={{ fontSize: 14, fontWeight: 600, lineHeight: 1.45, color: 'var(--sage-900)' }}>
+            Entendi e vou usar essas informações só para conferir a contratação.
           </span>
         </label>
 
         <div style={{ display: 'flex', gap: 10 }}>
           <button className="btn ghost" onClick={onCancelar} disabled={enviando} style={{ flex: 1 }}>
-            Cancelar
+            Voltar
           </button>
           <button
             className="btn"
             onClick={() => onAceitar(VERSAO_DISCLAIMER_REFERENCIA)}
             disabled={!marcado || enviando}
-            style={{ flex: 1 }}
+            style={{ flex: 1.4 }}
           >
-            {enviando ? 'Enviando…' : 'Concordo e continuar'}
+            {enviando ? 'Contratando…' : 'Concordo e contratar'}
           </button>
         </div>
       </div>
     </div>
+  )
+}
+
+function Cadeado({ tamanho = 18 }) {
+  return (
+    <svg width={tamanho} height={tamanho} viewBox="0 0 24 24" fill="none" stroke="var(--sage-900)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="4" y="11" width="16" height="10" rx="2" /><path d="M8 11V7a4 4 0 0 1 8 0v4" />
+    </svg>
+  )
+}
+function Conversa() {
+  return (
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--sage-900)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z" />
+    </svg>
+  )
+}
+function Registro() {
+  return (
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--sage-900)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9 11l2 2 4-4" /><path d="M5 4h14v16H5z" />
+    </svg>
   )
 }

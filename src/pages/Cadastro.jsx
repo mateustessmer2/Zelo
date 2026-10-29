@@ -262,7 +262,7 @@ export default function Cadastro() {
   // ------------------------------------------------- Confirmação de e-mail
   if (precisaConfirmar) {
     return (
-      <main className="wrap fade-in" style={{ padding: '50px 0 60px', maxWidth: 440, textAlign: 'center' }}>
+      <main className="wrap fade-in" style={{ padding: '50px 20px 60px', maxWidth: 440, textAlign: 'center' }}>
         <h2>Confirme seu e-mail</h2>
         <p className="lead" style={{ marginBottom: 24 }}>
           Enviamos um link de confirmação para <b>{email}</b>. Abra sua caixa
@@ -286,7 +286,7 @@ export default function Cadastro() {
       irPara('nome')
     }
     return (
-      <main className="wrap fade-in" style={{ padding: '30px 0 60px', maxWidth: 520 }}>
+      <main className="wrap fade-in" style={{ padding: '30px 20px 60px', maxWidth: 520 }}>
         <div style={{ textAlign: 'center' }}>
           <img
             src="/zelo-logo.jpeg"
@@ -329,7 +329,7 @@ export default function Cadastro() {
   const ehUltima = etapaAtual === 'conta'
 
   return (
-    <main className="wrap fade-in" style={{ padding: '24px 0 60px', maxWidth: 460 }}>
+    <main className="wrap fade-in" style={{ padding: '24px 20px 60px', maxWidth: 460 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
         <button
           type="button"
@@ -352,7 +352,7 @@ export default function Cadastro() {
         {erro && <div className="erro">{erro}</div>}
         {sucesso && (
           <div style={{
-            background: '#E8F2EA', color: 'var(--green)', fontWeight: 600,
+            background: 'var(--green-bg)', color: 'var(--green)', fontWeight: 600,
             padding: '12px 14px', borderRadius: 10, marginBottom: 14, fontSize: 14.5
           }}>
             ✓ Cadastro realizado com sucesso
@@ -361,19 +361,23 @@ export default function Cadastro() {
 
         {etapaAtual === 'nome' && (
           <Pergunta titulo="Qual é o seu nome completo?">
-            <input
-              value={nome} onChange={(e) => setNome(e.target.value)}
-              autoFocus autoComplete="name" placeholder="Nome e sobrenome"
-              style={{ fontSize: 17 }}
-            />
+            <div className="field">
+              <input
+                value={nome} onChange={(e) => setNome(e.target.value)}
+                autoFocus autoComplete="name" placeholder="Nome e sobrenome"
+                style={{ fontSize: 17 }}
+              />
+            </div>
           </Pergunta>
         )}
 
         {etapaAtual === 'cidade' && (
           <Pergunta titulo="Em qual cidade você está?">
-            <select value={cidadeId} onChange={(e) => { setCidadeId(e.target.value); setBairroId('') }} style={{ fontSize: 17 }}>
-              {cidades.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
-            </select>
+            <div className="field">
+              <select value={cidadeId} onChange={(e) => { setCidadeId(e.target.value); setBairroId('') }} style={{ fontSize: 17 }}>
+                {cidades.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
+              </select>
+            </div>
           </Pergunta>
         )}
 
@@ -384,14 +388,16 @@ export default function Cadastro() {
               ? 'O bairro onde você mora. Os bairros onde você atende você escolhe depois, no seu perfil.'
               : 'Usamos para mostrar profissionais perto de você.'}
           >
-            <select value={bairroId} onChange={(e) => setBairroId(e.target.value)} style={{ fontSize: 17 }}>
-              <option value="">Selecione</option>
-              {bairros.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.nome === 'Outro / não listado' ? 'Outros bairros' : b.nome}
-                </option>
-              ))}
-            </select>
+            <div className="field">
+              <select value={bairroId} onChange={(e) => setBairroId(e.target.value)} style={{ fontSize: 17 }}>
+                <option value="">Selecione</option>
+                {bairros.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {b.nome === 'Outro / não listado' ? 'Outros bairros' : b.nome}
+                  </option>
+                ))}
+              </select>
+            </div>
           </Pergunta>
         )}
 
@@ -608,9 +614,9 @@ function OpcaoMarcavel({ rotulo, marcado, onClick }) {
       style={{
         display: 'flex', alignItems: 'center', gap: 12, textAlign: 'left',
         padding: '15px 16px', borderRadius: 12, cursor: 'pointer', fontSize: 16,
-        background: marcado ? 'var(--sage-900)' : 'var(--paper)',
+        background: marcado ? 'var(--selecionado)' : 'var(--paper)',
         color: marcado ? '#fff' : 'var(--ink, inherit)',
-        border: `1.5px solid ${marcado ? 'var(--sage-900)' : 'var(--line)'}`,
+        border: `1.5px solid ${marcado ? 'var(--selecionado-borda)' : 'var(--line)'}`,
         transition: '.15s'
       }}
     >

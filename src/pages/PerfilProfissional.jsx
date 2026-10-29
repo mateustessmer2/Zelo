@@ -8,6 +8,8 @@ import SeloReferencias from '../components/SeloReferencias'
 import AvisoIntermediacao from '../components/AvisoIntermediacao'
 import SeloVerificacao from '../components/SeloVerificacao'
 import DisclaimerReferencia from '../components/DisclaimerReferencia'
+import SeloAntecedentes from '../components/SeloAntecedentes'
+import Avatar from '../components/Avatar'
 
 export default function PerfilProfissional() {
   const { id } = useParams()
@@ -24,7 +26,8 @@ export default function PerfilProfissional() {
   const [score, setScore] = useState(null)
   const [erro, setErro] = useState(null)
   const [contratando, setContratando] = useState(false)
-  const [temReferencia, setTemReferencia] = useState(false)
+  const [qtdReferencias, setQtdReferencias] = useState(0)
+  const temReferencia = qtdReferencias > 0
   const [disclaimerAberto, setDisclaimerAberto] = useState(false)
 
   useEffect(() => {
@@ -38,7 +41,7 @@ export default function PerfilProfissional() {
     ])
       .then(([p, s, qtdRef]) => {
         if (!ativo) return
-        setProf(p); setScore(s); setTemReferencia(qtdRef > 0)
+        setProf(p); setScore(s); setQtdReferencias(Number(qtdRef) || 0)
       })
       .catch(() => ativo && setErro('Perfil não encontrado.'))
     return () => { ativo = false }
@@ -132,23 +135,38 @@ export default function PerfilProfissional() {
   return (
     <main className="wrap fade-in" style={{ padding: '30px 0 60px' }}>
       <div style={{ display: 'flex', gap: 18, alignItems: 'flex-start', marginBottom: 20 }}>
-        <div className="avatar lg">{prof.perfis?.nome?.[0] ?? '?'}</div>
-        <div>
-          <h2 style={{ fontSize: 25 }}>{prof.perfis?.nome}</h2>
+        <Avatar nome={prof.perfis?.nome} foto={prof.perfis?.foto_url} tamanho="lg" />
+        <div style={{ minWidth: 0 }}>
+          <h2 style={{ fontSize: 27 }}>{prof.perfis?.nome}</h2>
           <div style={{ fontSize: 14, color: 'var(--muted)', marginTop: 1 }}>
             {prof.idade ? `${prof.idade} anos · ` : ''}{categorias}
           </div>
           <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', alignItems: 'center', marginTop: 10 }}>
             <SeloVerificacao data={prof.identidade_verificada_em} />
+            {prof.declaracao_antecedentes && <SeloAntecedentes />}
             <SeloReferencias selo={prof.selo} />
           </div>
-          {prof.selo && (
-            <p style={{ fontSize: 12, color: 'var(--muted)', marginTop: 6, maxWidth: 380 }}>
-              Selo por referências de trabalho confirmadas — veja os contatos abaixo.
-            </p>
-          )}
         </div>
       </div>
+
+      {/* Prova social: quantas referências o Zelo confirmou, logo no topo —
+          antes de qualquer pedido de contratação. Só o NÚMERO; nomes e
+          telefones (parciais) só por e-mail, depois de contratar. */}
+      {temReferencia && (
+        <div className="card" style={{ display: 'flex', gap: 14, alignItems: 'center', background: 'var(--green-bg)', borderColor: 'var(--green-borda)' }}>
+          <div style={{ fontFamily: "'Fraunces',serif", fontSize: 34, fontWeight: 500, color: 'var(--green)', lineHeight: 1, minWidth: 30, textAlign: 'center' }}>
+            {qtdReferencias}
+          </div>
+          <div>
+            <div style={{ fontWeight: 600, fontSize: 15, color: 'var(--sage-900)' }}>
+              {qtdReferencias === 1 ? 'referência de trabalho confirmada' : 'referências de trabalho confirmadas'}
+            </div>
+            <div style={{ fontSize: 13, color: 'var(--muted)', marginTop: 2 }}>
+              Clientes anteriores contatados pela equipe do Zelo. Você recebe um resumo por e-mail ao contratar.
+            </div>
+          </div>
+        </div>
+      )}
 
       <TrustScore
         notaMedia={score?.nota_media}
@@ -253,6 +271,7 @@ export default function PerfilProfissional() {
         enviando={contratando}
         onCancelar={() => setDisclaimerAberto(false)}
         onAceitar={(versao) => contratar(versao)}
+        quantidade={qtdReferencias}
       />
     </main>
   )

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 
 /**
@@ -22,6 +22,10 @@ import { useAuth } from '../hooks/useAuth'
 export default function Login() {
   const { entrar, perfil, sessao } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
+  // Só caminhos internos — nunca um endereço externo vindo de fora.
+  const voltarPara = typeof location.state?.voltarPara === 'string' && location.state.voltarPara.startsWith('/') && !location.state.voltarPara.startsWith('//')
+    ? location.state.voltarPara : null
   const [email, setEmail] = useState('')
   const [senha, setSenha] = useState('')
   const [erro, setErro] = useState(null)
@@ -34,13 +38,14 @@ export default function Login() {
     if (!logado || !sessao) return
     if (!perfil) return // ainda carregando; o efeito roda de novo quando chegar
 
+    if (voltarPara) { navigate(voltarPara, { replace: true }); return }
     navigate(
       perfil.role === 'profissional' ? '/painel-profissional'
       : perfil.role === 'admin' ? '/admin'
       : perfil.role === 'cliente' ? '/painel'
       : '/'
     )
-  }, [logado, sessao, perfil, navigate])
+  }, [logado, sessao, perfil, navigate, voltarPara])
 
   async function submeter(e) {
     e.preventDefault()

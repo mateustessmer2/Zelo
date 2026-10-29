@@ -13,19 +13,22 @@ import FeedbackPrivado from '../components/FeedbackPrivado'
 import EditarPerfil from '../components/EditarPerfil'
 import Agenda from '../components/Agenda'
 import Referencias from '../components/Referencias'
+import Escala from '../components/Escala'
 
 const ABAS = [
+  { id: 'escala', label: 'Escala' },
   { id: 'pedidos', label: 'Pedidos' },
   { id: 'perfil', label: 'Meu perfil' },
-  { id: 'agenda', label: 'Agenda' },
+  { id: 'agenda', label: 'Disponibilidade' },
   { id: 'verificacao', label: 'Verificação' },
+  { id: 'referencias', label: 'Referências' },
   { id: 'ganhos', label: 'Ganhos' },
   { id: 'avaliacoes', label: 'Avaliações' }
 ]
 
 export default function PainelProfissional() {
   const { perfil } = useAuth()
-  const [aba, setAba] = useState('pedidos')
+  const [aba, setAba] = useState('escala')
   const [bookings, setBookings] = useState(null)
   const [score, setScore] = useState(null)
   const [verificacoes, setVerificacoes] = useState([])
@@ -94,7 +97,7 @@ export default function PainelProfissional() {
 
             {!noAr && (
               <div className="note warn" style={{ marginBottom: 18 }}>
-                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#b8862c" strokeWidth="2">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--amber)" strokeWidth="2">
                   <circle cx="12" cy="12" r="10" /><path d="M12 8v4M12 16h.01" />
                 </svg>
                 <p><b>Seu perfil ainda não aparece na busca.</b> Conclua a verificação de
@@ -172,18 +175,23 @@ export default function PainelProfissional() {
           <>
             <Verificacao perfilId={perfil.id} verificacoes={verificacoes} idOk={idOk} antOk={antOk} selfieOk={selfieOk} noAr={noAr}
               onEnviado={() => listarVerificacoes(perfil.id).then(setVerificacoes)} />
-            <div style={{ marginTop: 14 }}>
-              <Referencias
-                perfilId={perfil.id}
-                referencias={referencias}
-                selo={selo}
-                onEnviado={() => {
-                  listarReferencias(perfil.id).then(setReferencias)
-                  obterProfissional(perfil.id).then((p) => setSelo(p?.selo ?? null))
-                }}
-              />
-            </div>
           </>
+        )}
+
+        {aba === 'escala' && (
+          <Escala bookings={bookings} onAbrirPedidos={() => { setAba('pedidos'); window.scrollTo({ top: 0 }) }} />
+        )}
+
+        {aba === 'referencias' && (
+          <Referencias
+            perfilId={perfil.id}
+            referencias={referencias}
+            selo={selo}
+            onEnviado={() => {
+              listarReferencias(perfil.id).then(setReferencias)
+              obterProfissional(perfil.id).then((p) => setSelo(p?.selo ?? null))
+            }}
+          />
         )}
 
         {aba === 'ganhos' && (
@@ -191,18 +199,18 @@ export default function PainelProfissional() {
             <h2>Seus ganhos</h2>
             <p className="lead" style={{ marginBottom: 22 }}>Valores combinados pelos serviços realizados.</p>
 
-            <div style={{ background: 'var(--sage-900)', borderRadius: 'var(--radius)', padding: 24, marginBottom: 14, color: '#fff' }}>
-              <div style={{ fontSize: 13, color: 'var(--sage-100)', marginBottom: 5 }}>Total combinado</div>
+            <div style={{ background: 'var(--selecionado)', borderRadius: 'var(--radius)', padding: 24, marginBottom: 14, color: '#fff' }}>
+              <div style={{ fontSize: 13, color: 'rgba(255,255,255,.75)', marginBottom: 5 }}>Total combinado</div>
               <div style={{ fontFamily: "'Fraunces',serif", fontSize: 38, fontWeight: 600, lineHeight: 1 }}>
                 R$ {totalGanho.toLocaleString('pt-BR')}
               </div>
-              <div style={{ fontSize: 13, color: 'var(--sage-100)', marginTop: 8 }}>
+              <div style={{ fontSize: 13, color: 'rgba(255,255,255,.75)', marginTop: 8 }}>
                 {concluidos.length} serviço{concluidos.length === 1 ? '' : 's'} concluído{concluidos.length === 1 ? '' : 's'}
               </div>
             </div>
 
             <div className="note warn">
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#b8862c" strokeWidth="2">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--amber)" strokeWidth="2">
                 <circle cx="12" cy="12" r="10" /><path d="M12 8v4M12 16h.01" />
               </svg>
               <p><b>O pagamento é feito diretamente a você</b>, por PIX ou dinheiro. A plataforma
@@ -219,7 +227,7 @@ export default function PainelProfissional() {
             <TrustScore notaMedia={score?.nota_media} total={score?.total_avaliacoes} metricas={[]} />
 
             <div className="note neutral" style={{ marginTop: -6 }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3a5244" strokeWidth="2">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--sage-700)" strokeWidth="2">
                 <rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" />
               </svg>
               <p><b>Você vê apenas seus números agregados.</b> Os comentários que clientes escrevem
@@ -314,7 +322,7 @@ function Verificacao({ perfilId, verificacoes, idOk, antOk, selfieOk, noAr, onEn
         />
 
         <div className="note neutral">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3a5244" strokeWidth="2">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--sage-700)" strokeWidth="2">
             <rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" />
           </svg>
           <p>
@@ -329,7 +337,7 @@ function Verificacao({ perfilId, verificacoes, idOk, antOk, selfieOk, noAr, onEn
       </div>
 
       <div className={`note ${noAr ? 'neutral' : 'warn'}`} style={noAr ? { background: 'var(--green-bg)' } : {}}>
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={noAr ? '#3f7d54' : '#b8862c'} strokeWidth="2">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={noAr ? 'var(--green)' : 'var(--amber)'} strokeWidth="2">
           {noAr
             ? <><path d="M12 2 4 5v6c0 5 3.5 8 8 11 4.5-3 8-6 8-11V5l-8-3z" /><path d="m9 12 2 2 4-4" /></>
             : <><circle cx="12" cy="12" r="10" /><path d="M12 8v4M12 16h.01" /></>}

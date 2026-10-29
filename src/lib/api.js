@@ -142,7 +142,7 @@ export async function buscarProfissionais({ categoriaId, bairroId, turno, limite
 
   let query = supabase
     .from('profissionais')
-    .select('id, descricao, idade, valor_meio_turno, valor_diaria, valor_km, tempo_resposta_min, visivel, atende_todos_bairros, selo, pontuacao_perfil')
+    .select('id, descricao, idade, valor_meio_turno, valor_diaria, valor_km, valor_sessao_avulsa, tempo_resposta_min, visivel, atende_todos_bairros, selo, pontuacao_perfil, declaracao_antecedentes')
     .eq('visivel', true)
     // Perfil mais completo aparece primeiro — decisão de negócio para
     // incentivar preenchimento (foto, descrição, valores, agenda,
@@ -589,7 +589,7 @@ export async function contarReferenciasAprovadas(profissionalId) {
 export async function listarReferencias(profissionalId) {
   const { data, error } = await supabase
     .from('referencias_trabalho')
-    .select('id, nome_referencia, telefone, status, observacao, created_at')
+    .select('id, nome_referencia, telefone, status, observacao, bloqueada, created_at')
     .eq('profissional_id', profissionalId)
     .order('created_at')
   if (error) throw error

@@ -245,7 +245,7 @@ export default function PainelAdmin() {
                 />
               </div>
               <div style={{ display: 'flex', gap: 9 }}>
-                <button className="btn sm" style={{ background: '#a33' }} onClick={() => confirmarBloqueio(r.id)}>
+                <button className="btn sm" style={{ background: 'var(--perigo)' }} onClick={() => confirmarBloqueio(r.id)}>
                   Confirmar bloqueio
                 </button>
                 <button className="btn ghost sm" onClick={() => { setBloqueandoId(null); setMotivo('') }}>

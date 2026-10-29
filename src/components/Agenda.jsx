@@ -141,9 +141,9 @@ export default function Agenda() {
                           style={{
                             width: '100%', padding: '10px 4px', borderRadius: 10, cursor: 'pointer',
                             fontFamily: 'inherit', fontSize: 13, fontWeight: 600, transition: '.15s',
-                            background: on ? 'var(--sage-900)' : 'var(--cream)',
+                            background: on ? 'var(--selecionado)' : 'var(--cream)',
                             color: on ? '#fff' : 'var(--sage-500)',
-                            border: `1.5px solid ${on ? 'var(--sage-900)' : 'var(--line)'}`
+                            border: `1.5px solid ${on ? 'var(--selecionado-borda)' : 'var(--line)'}`
                           }}
                         >
                           {on ? '✓' : '—'}

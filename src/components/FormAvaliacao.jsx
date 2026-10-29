@@ -39,7 +39,7 @@ export default function FormAvaliacao({ bookingId, alvoId, lado, onPronto }) {
 
   if (feito) {
     return (
-      <div className="card" style={{ textAlign: 'center', background: 'var(--green-bg)', borderColor: '#bfdcc8' }}>
+      <div className="card" style={{ textAlign: 'center', background: 'var(--green-bg)', borderColor: 'var(--green-borda)' }}>
         <div style={{ fontSize: 34 }}>✓</div>
         <h3>Avaliação enviada</h3>
         <p style={{ fontSize: 13.5, color: 'var(--sage-700)' }}>
@@ -120,7 +120,7 @@ export default function FormAvaliacao({ bookingId, alvoId, lado, onPronto }) {
       </button>
 
       <div className="note neutral">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3a5244" strokeWidth="2">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--sage-700)" strokeWidth="2">
           <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" /><circle cx="12" cy="12" r="3" />
         </svg>
         <p><b>Nada aparece até os dois avaliarem.</b> {ehCliente

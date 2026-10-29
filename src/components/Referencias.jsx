@@ -2,19 +2,33 @@ import { useState } from 'react'
 import { enviarReferencia } from '../lib/api'
 import SeloReferencias from './SeloReferencias'
 
+// Semáforo suave: cinza = esperando, verde = aprovada, âmbar = não deu
+// para confirmar, vermelho = bloqueada pelo Zelo.
 const ROTULO_STATUS = {
-  pendente: { texto: 'Aguardando confirmação', cor: 'var(--muted)' },
-  em_analise: { texto: 'Em análise', cor: 'var(--muted)' },
-  aprovado: { texto: '✓ Confirmada', cor: 'var(--green)' },
-  rejeitado: { texto: 'Não confirmada', cor: '#b8862c' }
+  pendente: { texto: 'Em análise', classe: 's-cinza' },
+  em_analise: { texto: 'Em análise', classe: 's-cinza' },
+  aprovado: { texto: 'Aprovada', classe: 's-verde' },
+  rejeitado: { texto: 'Não confirmada', classe: 's-ambar' },
+  bloqueada: { texto: 'Bloqueada', classe: 's-vermelho' }
+}
+
+const AJUDA_STATUS = {
+  'Em análise': 'Vamos ligar para confirmar.',
+  'Aprovada': 'Conta para o seu selo.',
+  'Não confirmada': 'Não conseguimos confirmar este contato.',
+  'Bloqueada': 'Retirada pelo Zelo. Não conta mais para o selo.'
+}
+
+function statusDe(r) {
+  return r.bloqueada ? ROTULO_STATUS.bloqueada : (ROTULO_STATUS[r.status] ?? { texto: r.status, classe: 's-cinza' })
 }
 
 /**
  * Referências de trabalho anteriores — até 3, cada uma vira um contato
  * (nome + telefone) que o admin liga para confirmar antes de aprovar.
  *
- * A profissional só vê o STATUS de cada uma (pendente/confirmada/não
- * confirmada) — nunca edita depois de enviar, e o limite de 3 é reforçado
+ * A profissional só vê o STATUS de cada uma (em análise/aprovada/não
+ * confirmada/bloqueada) — nunca edita depois de enviar, e o limite de 3 é reforçado
  * pelo banco (trigger `checar_limite_referencias`), não só por esta tela.
  */
 export default function Referencias({ perfilId, referencias, selo, onEnviado }) {
@@ -44,7 +58,7 @@ export default function Referencias({ perfilId, referencias, selo, onEnviado }) 
 
   return (
     <div className="card">
-      <h3>Referências de trabalho</h3>
+      <h3 style={{ fontFamily: "'Fraunces',serif", fontSize: 20, fontWeight: 500, marginBottom: 6 }}>Referências de trabalho</h3>
       <p style={{ fontSize: 13.5, color: 'var(--muted)', marginBottom: 14 }}>
         Informe o contato de clientes que você já atendeu. Ligamos para confirmar
         que o contato existe antes de aprovar. Isso facilita o acesso à referência
@@ -59,18 +73,24 @@ export default function Referencias({ perfilId, referencias, selo, onEnviado }) 
       )}
 
       {referencias.length > 0 && (
-        <div style={{ marginBottom: 16 }}>
-          {referencias.map((r) => (
-            <div key={r.id} style={{
-              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-              padding: '10px 0', borderBottom: '1px solid var(--line)'
-            }}>
-              <span style={{ fontSize: 14 }}>{r.nome_referencia}</span>
-              <span style={{ fontSize: 13, fontWeight: 600, color: ROTULO_STATUS[r.status]?.cor }}>
-                {ROTULO_STATUS[r.status]?.texto ?? r.status}
-              </span>
-            </div>
-          ))}
+        <div style={{ marginBottom: 18 }}>
+          {referencias.map((r) => {
+            const st = statusDe(r)
+            return (
+              <div key={r.id} style={{
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12,
+                padding: '12px 0', borderBottom: '1px solid var(--line)'
+              }}>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 14.5, fontWeight: 600, color: 'var(--sage-900)' }}>{r.nome_referencia}</div>
+                  <div style={{ fontSize: 12.5, color: 'var(--muted)', marginTop: 1 }}>
+                    Enviada em {new Date(r.created_at).toLocaleDateString('pt-BR')} · {AJUDA_STATUS[st.texto] ?? ''}
+                  </div>
+                </div>
+                <span className={`status ${st.classe}`} style={{ flexShrink: 0 }}>{st.texto}</span>
+              </div>
+            )
+          })}
         </div>
       )}
 

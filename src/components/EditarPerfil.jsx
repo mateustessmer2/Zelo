@@ -272,7 +272,7 @@ export default function EditarPerfil({ onSalvo }) {
               onChange={(e) => trocarFoto(e.target.files?.[0])}
               style={{ fontSize: 13.5 }}
             />
-            {erroFoto && <p style={{ fontSize: 12.5, color: '#c0392b', marginTop: 6 }}>{erroFoto}</p>}
+            {erroFoto && <p style={{ fontSize: 12.5, color: 'var(--red)', marginTop: 6 }}>{erroFoto}</p>}
             <p style={{ fontSize: 12, color: 'var(--muted)', marginTop: 6 }}>
               Uma foto de rosto, de frente, ajuda a família a te reconhecer.
             </p>

@@ -95,7 +95,7 @@ export default function NovaSenha() {
         {erro && <div className="erro">{erro}</div>}
         {sucesso && (
           <div style={{
-            background: '#E8F2EA', color: 'var(--green)', fontWeight: 600,
+            background: 'var(--green-bg)', color: 'var(--green)', fontWeight: 600,
             padding: '12px 14px', borderRadius: 10, marginBottom: 14, fontSize: 14.5
           }}>
             ✓ Senha alterada com sucesso

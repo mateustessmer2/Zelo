@@ -34,7 +34,7 @@ export default function SeloVerificacao({ data }) {
           aria-labelledby="titulo-selo"
           onClick={() => setAberto(false)}
           style={{
-            position: 'fixed', inset: 0, background: 'rgba(20,26,22,.45)',
+            position: 'fixed', inset: 0, background: 'var(--sobreposicao)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             padding: 20, zIndex: 50
           }}

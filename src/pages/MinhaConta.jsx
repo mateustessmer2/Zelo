@@ -99,8 +99,8 @@ export default function MinhaConta() {
         </p>
       </div>
 
-      <div className="card" style={{ borderColor: '#e6c9c9' }}>
-        <h3 style={{ color: '#a33' }}>Encerrar minha conta</h3>
+      <div className="card" style={{ borderColor: 'var(--red-borda)' }}>
+        <h3 style={{ color: 'var(--red)' }}>Encerrar minha conta</h3>
         <p style={{ fontSize: 13.5, color: 'var(--muted)', marginBottom: 10 }}>
           Isso apaga seu perfil, suas contratações, avaliações e referências.
           <b> A ação não pode ser desfeita.</b>
@@ -126,7 +126,7 @@ export default function MinhaConta() {
 
         <button
           className="btn full"
-          style={{ background: '#a33' }}
+          style={{ background: 'var(--perigo)' }}
           onClick={excluirConta}
           disabled={confirmacao !== 'EXCLUIR' || excluindo}
         >

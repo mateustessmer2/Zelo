@@ -1,5 +1,5 @@
 import { Suspense, lazy } from 'react'
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 // Cadastro é a tela inicial: import direto, sem lazy, para abrir rápido.
 import Cadastro from './pages/Cadastro'
 import { useAuth } from './hooks/useAuth'
@@ -25,8 +25,12 @@ const PainelAdmin = lazy(() => import('./pages/PainelAdmin'))
 /** Rota que exige login — e opcionalmente um papel específico. */
 function Protegida({ children, papel }) {
   const { sessao, perfil, carregando, sair } = useAuth()
+  const location = useLocation()
   if (carregando) return <div className="loading">Carregando…</div>
-  if (!sessao) return <Navigate to="/entrar" replace />
+  // Guarda a página pedida: quem chega por um link compartilhado no
+  // WhatsApp (ex.: perfil de uma profissional) volta para ela depois de
+  // entrar, em vez de cair no painel.
+  if (!sessao) return <Navigate to="/entrar" replace state={{ voltarPara: location.pathname + location.search }} />
 
   // Sessão existe mas o perfil não veio. Dois casos:
   //  • ainda buscando -> `carregando` cobre;

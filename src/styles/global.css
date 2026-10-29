@@ -1,19 +1,28 @@
 /* ============================================================================
-   DESIGN TOKENS
+   DESIGN TOKENS — TEMA CLARO
    ----------------------------------------------------------------------------
-   Verde-sálvia como cor de confiança (é o que o produto vende), off-white
-   quente para o fundo, coral reservado só para ações. Fraunces nos títulos
-   dá personalidade sem virar decoração; Inter no corpo mantém legível no
-   celular, que é onde a maioria vai usar.
+   Fundo off-white quente (acolhedor, menos clínico que branco puro) e
+   verde-escuro #25352b como cor de confiança: títulos, botões de ação
+   principal e marcações de verificação. Coral fica só como detalhe de
+   marca (ponto do logo, estrelas, aba ativa). Fraunces nos títulos e nomes
+   de profissionais; Inter em todo o resto.
+
+   --selecionado é a cor de superfícies "preenchidas" (chip marcado, opção
+   escolhida, mensagem minha no chat, dia marcado na agenda).
    ============================================================================ */
 :root{
+  color-scheme:light;
   --sage-900:#25352b; --sage-700:#3a5244; --sage-500:#6a8570; --sage-100:#dfe7e0;
   --cream:#f7f4ee; --paper:#fffdf9;
+  --selecionado:#25352b; --selecionado-borda:#25352b;
+  --acao:#25352b; --acao-hover:#3a5244;
   --coral:#e07856; --coral-dark:#c95f3f;
   --ink:#1c241f; --muted:#71786f; --line:#e6e1d7;
-  --amber:#b8862c; --amber-bg:#faf1dd;
-  --green:#3f7d54; --green-bg:#e3f0e7;
-  --red:#a8443a; --red-bg:#f8e6e3;
+  --amber:#a07222; --amber-bg:#faf1dd; --amber-borda:#ecd9a8;
+  --green:#3f7d54; --green-bg:#e3f0e7; --green-borda:#bfdcc8;
+  --red:#a8443a; --red-bg:#f8e6e3; --red-borda:#e6c9c9; --perigo:#a8443a;
+  --cinza:#5f6660; --cinza-bg:#eceae4;
+  --sobreposicao:rgba(20,26,22,.45);
   --radius:20px;
   --shadow:0 1px 2px rgba(30,40,30,.04),0 12px 32px rgba(30,40,30,.07);
 }
@@ -28,6 +37,10 @@ body{
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 
 .wrap{max-width:800px;margin:0 auto;padding:0 20px}
+/* Várias páginas definem `padding: '30px 0 60px'` inline, o que zerava a
+   margem lateral e colava o conteúdo nas bordas do celular. A margem
+   lateral é garantida aqui, para todas de uma vez. */
+.wrap{padding-left:20px!important;padding-right:20px!important}
 
 /* Tipografia --------------------------------------------------------------- */
 h1,h2,h3{font-family:'Fraunces',serif;font-weight:500;color:var(--sage-900);letter-spacing:-.015em}
@@ -43,16 +56,16 @@ h3{font-size:16px;font-weight:600;letter-spacing:0}
 
 /* Botões ------------------------------------------------------------------- */
 .btn{
-  background:var(--coral);color:#fff;border:none;border-radius:12px;
+  background:var(--acao);color:#fff;border:none;border-radius:12px;
   padding:13px 22px;font-size:14.5px;font-weight:600;cursor:pointer;
   font-family:inherit;transition:.15s;text-decoration:none;display:inline-block;text-align:center;
 }
-.btn:hover{background:var(--coral-dark)}
+.btn:hover{background:var(--acao-hover)}
 .btn:disabled{background:var(--sage-100);color:var(--sage-500);cursor:not-allowed}
 .btn.ghost{background:none;color:var(--sage-700);border:1.5px solid var(--line)}
 .btn.ghost:hover{background:var(--sage-100)}
-.btn.dark{background:var(--sage-900)}
-.btn.dark:hover{background:var(--sage-700)}
+.btn.dark{background:var(--selecionado)}
+.btn.dark:hover{background:var(--selecionado-borda)}
 .btn.full{width:100%}
 .btn.sm{padding:9px 16px;font-size:13px;border-radius:10px}
 
@@ -71,8 +84,8 @@ h3{font-size:16px;font-weight:600;letter-spacing:0}
 
 /* Chips -------------------------------------------------------------------- */
 .chips{display:flex;gap:8px;flex-wrap:wrap}
-.chip{padding:9px 15px;border:1.5px solid var(--line);border-radius:999px;background:var(--cream);cursor:pointer;font-size:13.5px;font-weight:500;user-select:none;transition:.15s}
-.chip.on{background:var(--sage-900);color:#fff;border-color:var(--sage-900)}
+.chip{padding:9px 15px;border:1.5px solid var(--line);border-radius:999px;background:var(--cream);color:var(--ink);cursor:pointer;font-size:13.5px;font-weight:500;user-select:none;transition:.15s}
+.chip.on{background:var(--selecionado);color:#fff;border-color:var(--selecionado-borda)}
 
 /* Avatar ------------------------------------------------------------------- */
 .avatar{
@@ -100,8 +113,8 @@ h3{font-size:16px;font-weight:600;letter-spacing:0}
 .note{display:flex;gap:10px;border-radius:13px;padding:13px 15px;margin-top:14px}
 .note.neutral{background:var(--sage-100)}
 .note.neutral p{font-size:12.5px;color:var(--sage-700);line-height:1.5}
-.note.warn{background:var(--amber-bg);border:1px solid #ecd9a8}
-.note.warn p{font-size:12.8px;color:#6b5316;line-height:1.5}
+.note.warn{background:var(--amber-bg);border:1px solid var(--amber-borda)}
+.note.warn p{font-size:12.8px;color:var(--amber);line-height:1.5}
 .note svg{flex-shrink:0;margin-top:2px}
 .note b{color:var(--sage-900)}
 
@@ -134,3 +147,23 @@ h3{font-size:16px;font-weight:600;letter-spacing:0}
 .doc ul{margin:0 0 14px 20px;padding:0}
 .doc li{font-size:14.5px;line-height:1.65;margin-bottom:6px}
 .doc a{color:var(--sage-700)}
+
+/* Status semafórico suave (referências, pedidos) -------------------------- */
+.s-cinza{background:var(--cinza-bg);color:var(--cinza)}
+.s-verde{background:var(--green-bg);color:var(--green)}
+.s-ambar{background:var(--amber-bg);color:var(--amber)}
+.s-vermelho{background:var(--red-bg);color:var(--red)}
+
+/* Selo neutro: autodeclaração (não é verificação, não leva o verde) ------- */
+.seal.neutro{background:var(--cinza-bg);color:var(--cinza)}
+
+/* Foto redonda no lugar da inicial ---------------------------------------- */
+.avatar img{width:100%;height:100%;object-fit:cover;border-radius:inherit;display:block}
+
+/* Modal ------------------------------------------------------------------- */
+.modal-fundo{position:fixed;inset:0;background:var(--sobreposicao);display:flex;align-items:center;justify-content:center;padding:20px;z-index:60}
+.modal{background:var(--paper);border-radius:18px;padding:26px 22px 22px;max-width:440px;width:100%;max-height:88vh;overflow-y:auto;box-shadow:var(--shadow)}
+.modal-icone{width:46px;height:46px;border-radius:14px;background:var(--sage-100);display:grid;place-items:center;margin-bottom:14px}
+.lista-icones{list-style:none;margin:0 0 16px;padding:0}
+.lista-icones li{display:flex;gap:11px;align-items:flex-start;font-size:14px;line-height:1.5;margin-bottom:11px}
+.lista-icones svg{flex-shrink:0;margin-top:2px}
