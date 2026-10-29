@@ -1,7 +1,7 @@
 import { useState } from 'react'
 
 /** Versão do texto — suba ao alterar qualquer palavra do disclaimer. */
-export const VERSAO_DISCLAIMER_REFERENCIA = '2026-07-31'
+export const VERSAO_DISCLAIMER_REFERENCIA = '2026-10-29'
 
 /**
  * Disclaimer exibido antes de enviar o contato de referência por e-mail.
@@ -9,7 +9,7 @@ export const VERSAO_DISCLAIMER_REFERENCIA = '2026-07-31'
  * Só aparece quando a profissional TEM referência aprovada (a contagem
  * vem de `contarReferenciasAprovadas`, que nunca revela o conteúdo em si
  * — só o número). Aceitar aqui é o que autoriza o envio do e-mail com
- * primeiro nome + telefone.
+ * nome e telefone parciais.
  *
  * O texto precisa deixar claro que o contato é para conferência da
  * contratação, não para uso livre — é a barreira legal pedida
@@ -45,9 +45,9 @@ export default function DisclaimerReferencia({ aberto, onAceitar, onCancelar, en
 
         <p style={{ fontSize: 14, lineHeight: 1.6, marginBottom: 14 }}>
           Esta profissional tem referência de trabalho confirmada pelo Zelo.
-          Ao contratar, você receberá por e-mail o primeiro nome e o telefone
-          de contato dessa referência, para que possa ligar e confirmar a
-          experiência antes de decidir.
+          Ao contratar, você receberá por e-mail um resumo das referências,
+          com nome e telefone parciais. Para mais informações, fale direto
+          com a profissional que fez as indicações.
         </p>
 
         <p style={{ fontSize: 13.5, lineHeight: 1.6, color: 'var(--muted)', marginBottom: 14 }}>

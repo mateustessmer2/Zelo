@@ -99,7 +99,7 @@ export function AuthProvider({ children }) {
      * `auth.uid()`, que não existe nesse meio-tempo. O trigger no banco
      * roda com privilégio de sistema e não tem esse problema.
      */
-    async cadastrar({ email, senha, nome, role, cidadeId, bairroId, termo, declaracaoAntecedentes, declarouVerdade, declarouApto }) {
+    async cadastrar({ email, senha, nome, role, cidadeId, bairroId, termo, declaracaoAntecedentes, declarouVerdade, declarouApto, dadosProfissional }) {
       const { data, error } = await supabase.auth.signUp({
         email,
         password: senha,
@@ -116,7 +116,21 @@ export function AuthProvider({ children }) {
             declaracao_antecedentes_aceito: !!declaracaoAntecedentes?.aceito,
             declaracao_antecedentes_versao: declaracaoAntecedentes?.aceito ? declaracaoAntecedentes.versao : null,
             declarou_info_verdadeiras: !!declarouVerdade,
-            declarou_apto_legalmente: !!declarouApto
+            declarou_apto_legalmente: !!declarouApto,
+            // Cadastro em etapas (migração 30): categorias, subopções,
+            // valores e local de atendimento da profissional. Também
+            // gravados pelo trigger — sem sessão, o navegador não grava.
+            ...(role === 'profissional' && dadosProfissional ? {
+              categorias: dadosProfissional.categorias ?? [],
+              servicos: dadosProfissional.servicos ?? [],
+              valor_meio_turno: dadosProfissional.valorMeioTurno || null,
+              valor_diaria: dadosProfissional.valorDiaria || null,
+              valor_km: dadosProfissional.valorKm || null,
+              valor_sessao_avulsa: dadosProfissional.valorSessaoAvulsa || null,
+              valor_pacote_mensal: dadosProfissional.valorPacoteMensal || null,
+              atende_domicilio: dadosProfissional.atendeDomicilio ?? true,
+              atende_local_proprio: dadosProfissional.atendeLocalProprio ?? false
+            } : {})
           }
         }
       })

@@ -26,6 +26,10 @@ export default function EditarPerfil({ onSalvo }) {
   const [valorMeioTurno, setValorMeioTurno] = useState('')
   const [valorKm, setValorKm] = useState('')
   const [valorDiaria, setValorDiaria] = useState('')
+  const [valorSessaoAvulsa, setValorSessaoAvulsa] = useState('')
+  const [valorPacoteMensal, setValorPacoteMensal] = useState('')
+  const [atendeDomicilio, setAtendeDomicilio] = useState(true)
+  const [atendeLocalProprio, setAtendeLocalProprio] = useState(false)
   const [atendeIntermunicipal, setAtendeIntermunicipal] = useState(false)
   const [veiculoModelo, setVeiculoModelo] = useState('')
   const [veiculoAno, setVeiculoAno] = useState('')
@@ -46,11 +50,32 @@ export default function EditarPerfil({ onSalvo }) {
   // Domiciliar/Hospitalar (migração 28) — mostra a lista, sem precisar
   // de mais um flag específico por categoria a cada nova que ganhar
   // subopções.
-  const SLUGS_COM_SUBOPCOES = ['limpeza-residencial', 'cuidador-domiciliar-hospitalar']
+  const SLUGS_COM_SUBOPCOES = [
+    'limpeza-residencial', 'cuidador-domiciliar-hospitalar',
+    'personal-trainer', 'massagista', 'fisioterapeuta'
+  ]
   const categoriaComSubopcoes = categorias.find(
     (c) => SLUGS_COM_SUBOPCOES.includes(c.slug) && catSel.includes(c.id)
   )
   const temSubopcoes = !!categoriaComSubopcoes
+
+  // Personal Trainer, Massagista e Fisioterapeuta cobram por sessão, não
+  // por turno (meio turno/diária não fazem sentido pra elas). As três têm
+  // sessão avulsa e pacote mensal.
+  const SLUGS_COM_SESSAO_AVULSA = ['personal-trainer', 'massagista', 'fisioterapeuta']
+  const SLUGS_COM_PACOTE_MENSAL = ['personal-trainer', 'massagista', 'fisioterapeuta']
+  const temSessaoAvulsa = categorias.some((c) => SLUGS_COM_SESSAO_AVULSA.includes(c.slug) && catSel.includes(c.id))
+  const temPacoteMensal = categorias.some((c) => SLUGS_COM_PACOTE_MENSAL.includes(c.slug) && catSel.includes(c.id))
+  // Campos de turno (meio turno/diária) só aparecem se alguma categoria
+  // marcada realmente usa esse modelo — ou seja, se não é (só) sessão.
+  const temValorPorTurno = categorias.some(
+    (c) => !SLUGS_COM_SESSAO_AVULSA.includes(c.slug) && catSel.includes(c.id)
+  )
+
+  // Local de atendimento (domicílio e/ou espaço próprio) só se aplica a
+  // essas três — as demais categorias já presumem domicílio.
+  const SLUGS_COM_LOCAL_PROPRIO = ['personal-trainer', 'massagista', 'fisioterapeuta']
+  const temOpcaoLocalProprio = categorias.some((c) => SLUGS_COM_LOCAL_PROPRIO.includes(c.slug) && catSel.includes(c.id))
   const [servicosDisponiveis, setServicosDisponiveis] = useState([])
   const [servicosSel, setServicosSel] = useState([])
   const [servicoOutro, setServicoOutro] = useState('')
@@ -94,6 +119,10 @@ export default function EditarPerfil({ onSalvo }) {
         setEspecialidades((prof.especialidades ?? []).join(', '))
         setValorMeioTurno(prof.valor_meio_turno ?? '')
         setValorKm(prof.valor_km ?? '')
+        setValorSessaoAvulsa(prof.valor_sessao_avulsa ?? '')
+        setValorPacoteMensal(prof.valor_pacote_mensal ?? '')
+        setAtendeDomicilio(prof.atende_domicilio ?? true)
+        setAtendeLocalProprio(prof.atende_local_proprio ?? false)
         setAtendeIntermunicipal(!!prof.atende_intermunicipal)
         setVeiculoModelo(prof.veiculo_modelo ?? '')
         setVeiculoAno(prof.veiculo_ano ?? '')
@@ -181,6 +210,10 @@ export default function EditarPerfil({ onSalvo }) {
         valor_meio_turno: valorMeioTurno ? Number(valorMeioTurno) : null,
         valor_diaria: valorDiaria ? Number(valorDiaria) : null,
         valor_km: valorKm ? Number(valorKm) : null,
+        valor_sessao_avulsa: temSessaoAvulsa && valorSessaoAvulsa ? Number(valorSessaoAvulsa) : null,
+        valor_pacote_mensal: temPacoteMensal && valorPacoteMensal ? Number(valorPacoteMensal) : null,
+        atende_domicilio: temOpcaoLocalProprio ? atendeDomicilio : true,
+        atende_local_proprio: temOpcaoLocalProprio ? atendeLocalProprio : false,
         atende_intermunicipal: ehMotorista ? atendeIntermunicipal : false,
         veiculo_modelo: ehMotorista && veiculoModelo.trim() ? veiculoModelo.trim() : null,
         veiculo_ano: ehMotorista && veiculoAno ? Number(veiculoAno) : null,
@@ -359,26 +392,60 @@ export default function EditarPerfil({ onSalvo }) {
 
       <div className="card">
         <h3>Seus valores</h3>
-        <div className="row">
-          <div className="field">
-            <label htmlFor="vh">Meio turno — 4h (R$)</label>
-            <input id="vh" type="number" step="0.01" value={valorMeioTurno} onChange={(e) => setValorMeioTurno(e.target.value)} />
+        {temValorPorTurno && (
+          <div className="row">
+            <div className="field">
+              <label htmlFor="vh">Meio turno — 4h (R$)</label>
+              <input id="vh" type="number" step="0.01" value={valorMeioTurno} onChange={(e) => setValorMeioTurno(e.target.value)} />
+            </div>
+            <div className="field">
+              <label htmlFor="vd">Turno integral — 8h (R$)</label>
+              <input id="vd" type="number" step="0.01" value={valorDiaria} onChange={(e) => setValorDiaria(e.target.value)} />
+            </div>
           </div>
-          <div className="field">
-            <label htmlFor="vd">Turno integral — 8h (R$)</label>
-            <input id="vd" type="number" step="0.01" value={valorDiaria} onChange={(e) => setValorDiaria(e.target.value)} />
-          </div>
-        </div>
+        )}
         {ehMotorista && (
           <div className="field">
             <label htmlFor="vkm">Valor por km rodado (R$)</label>
             <input id="vkm" type="number" step="0.01" value={valorKm} onChange={(e) => setValorKm(e.target.value)} />
           </div>
         )}
+        {temSessaoAvulsa && (
+          <div className="row">
+            <div className="field">
+              <label htmlFor="vsa">Sessão avulsa (R$)</label>
+              <input id="vsa" type="number" step="0.01" value={valorSessaoAvulsa} onChange={(e) => setValorSessaoAvulsa(e.target.value)} />
+            </div>
+            {temPacoteMensal && (
+              <div className="field">
+                <label htmlFor="vpm">Pacote mensal (R$)</label>
+                <input id="vpm" type="number" step="0.01" value={valorPacoteMensal} onChange={(e) => setValorPacoteMensal(e.target.value)} />
+              </div>
+            )}
+          </div>
+        )}
         <p style={{ fontSize: 12.5, color: 'var(--muted)', margin: 0 }}>
           Você define seus próprios valores e aceita apenas os serviços que quiser.
         </p>
       </div>
+
+      {temOpcaoLocalProprio && (
+        <div className="card" style={{ marginBottom: 18 }}>
+          <h3>Onde você atende</h3>
+          <div className="chips">
+            <button
+              type="button"
+              className={`chip ${atendeDomicilio ? 'on' : ''}`}
+              onClick={() => setAtendeDomicilio(!atendeDomicilio)}
+            >Domicílio do cliente</button>
+            <button
+              type="button"
+              className={`chip ${atendeLocalProprio ? 'on' : ''}`}
+              onClick={() => setAtendeLocalProprio(!atendeLocalProprio)}
+            >Espaço próprio (academia/estúdio/consultório)</button>
+          </div>
+        </div>
+      )}
 
       {ehMotorista && (
         <div className="card" style={{ marginBottom: 18 }}>

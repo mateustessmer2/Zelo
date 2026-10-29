@@ -175,9 +175,24 @@ export default function PerfilProfissional() {
       <div className="card">
         <h3>Atendimento</h3>
         <Linha k="Bairros" v={prof.atende_todos_bairros ? 'Atende todos os bairros' : (bairros || '—')} />
-        <Linha k="Meio turno (4h)" v={prof.valor_meio_turno ? `R$ ${prof.valor_meio_turno}` : '—'} />
-        <Linha k="Turno integral (8h)" v={prof.valor_diaria ? `R$ ${prof.valor_diaria}` : '—'} />
+        {(prof.valor_meio_turno || prof.valor_diaria) && (
+          <>
+            <Linha k="Meio turno (4h)" v={prof.valor_meio_turno ? `R$ ${prof.valor_meio_turno}` : '—'} />
+            <Linha k="Turno integral (8h)" v={prof.valor_diaria ? `R$ ${prof.valor_diaria}` : '—'} />
+          </>
+        )}
         {prof.valor_km && <Linha k="Valor por km rodado" v={`R$ ${prof.valor_km}`} />}
+        {prof.valor_sessao_avulsa && <Linha k="Sessão avulsa" v={`R$ ${prof.valor_sessao_avulsa}`} />}
+        {prof.valor_pacote_mensal && <Linha k="Pacote mensal" v={`R$ ${prof.valor_pacote_mensal}`} />}
+        {(prof.atende_domicilio || prof.atende_local_proprio) && (prof.valor_sessao_avulsa) && (
+          <Linha
+            k="Local de atendimento"
+            v={[
+              prof.atende_domicilio && 'Domicílio do cliente',
+              prof.atende_local_proprio && 'Espaço próprio'
+            ].filter(Boolean).join(' · ')}
+          />
+        )}
         {(prof.veiculo_modelo || prof.veiculo_ano) && (
           <Linha
             k="Veículo"

@@ -112,3 +112,23 @@ O e-mail vai para o endereço de cadastro da própria profissional (não
 para o admin), usando `supabase.auth.admin.getUserById` para buscar o
 e-mail a partir do id — por isso a função depende da service role key,
 que já está configurada.
+
+---
+
+## 7. Aviso de conclusão — pede avaliação (webhook extra)
+
+Um quinto webhook, na tabela de bookings:
+
+| Nome | Tabela | Evento | Função |
+|---|---|---|---|
+| `aviso-servico-concluido` | `bookings` | Update | `notificar-cadastro` |
+
+A função detecta que é `bookings` + UPDATE e desvia para a lógica de
+conclusão. Só age quando o status muda **para** `concluido` (não repete
+em edições que não mudam o status). Envia dois e-mails — um para o
+cliente, outro para a profissional — cada um pedindo para avaliar o
+outro lado, com o lembrete de que a avaliação só fica pública quando
+ambos avaliarem.
+
+Testar: marque um booking como concluído (pelo painel do cliente ou da
+profissional) e confira as duas caixas de entrada.

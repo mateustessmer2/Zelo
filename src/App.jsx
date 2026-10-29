@@ -1,9 +1,10 @@
 import { Suspense, lazy } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
+// Cadastro é a tela inicial: import direto, sem lazy, para abrir rápido.
+import Cadastro from './pages/Cadastro'
 import { useAuth } from './hooks/useAuth'
 import Header from './components/Header'
 import Rodape from './components/Rodape'
-import Home from './pages/Home'
 
 // Code splitting: a home carrega no bundle inicial (é a porta de entrada,
 // precisa abrir rápido no celular); o resto só é baixado quando visitado.
@@ -12,7 +13,6 @@ import Home from './pages/Home'
 const Busca = lazy(() => import('./pages/Busca'))
 const PerfilProfissional = lazy(() => import('./pages/PerfilProfissional'))
 const Login = lazy(() => import('./pages/Login'))
-const Cadastro = lazy(() => import('./pages/Cadastro'))
 const RecuperarSenha = lazy(() => import('./pages/RecuperarSenha'))
 const NovaSenha = lazy(() => import('./pages/NovaSenha'))
 const TermosUso = lazy(() => import('./pages/TermosUso'))
@@ -62,7 +62,7 @@ export default function App() {
       <Header />
       <Suspense fallback={<div className="loading">Carregando…</div>}>
         <Routes>
-          <Route path="/" element={<Home />} />
+          <Route path="/" element={<Cadastro />} />
           <Route path="/buscar" element={<Protegida><Busca /></Protegida>} />
           <Route path="/profissional/:id" element={<Protegida><PerfilProfissional /></Protegida>} />
           <Route path="/entrar" element={<Login />} />

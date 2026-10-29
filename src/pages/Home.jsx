@@ -30,8 +30,9 @@ export default function Home() {
         />
 
         <p className="lead" style={{ maxWidth: 360, marginBottom: 36 }}>
-          Diaristas, babás, cuidadoras de idosos e motoristas particulares
-          para cuidar da sua casa e da sua família.
+          Diaristas, babás, cuidadores, motoristas particulares, personal
+          trainers, massagistas e fisioterapeutas para cuidar da sua casa, da
+          sua família e da sua saúde.
         </p>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12, width: '100%', maxWidth: 320 }}>

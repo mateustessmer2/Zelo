@@ -77,9 +77,10 @@ export default function Privacidade() {
         Ao cadastrar contatos de referência, o profissional informa nome e
         telefone de outras pessoas. Esses dados são usados exclusivamente para
         que a equipe do Zelo entre em contato e confirme a referência. Eles não
-        aparecem em nenhum perfil público e não são compartilhados com clientes
-        — o que os clientes veem é apenas o selo (bronze, prata ou ouro)
-        indicando quantas referências foram confirmadas.
+        aparecem em nenhum perfil público e nunca são compartilhados por
+        completo com clientes — o que os clientes veem é o selo (bronze, prata
+        ou ouro) indicando quantas referências foram confirmadas e, ao
+        contratar, um resumo por e-mail com nome e telefone parciais.
       </p>
 
       <h2>5. Para que usamos seus dados</h2>

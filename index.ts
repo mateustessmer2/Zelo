@@ -1,9 +1,11 @@
 // ============================================================================
 // EDGE FUNCTION — enviar-referencia
 // ----------------------------------------------------------------------------
-// Envia por e-mail ao cliente o contato (primeiro nome + telefone) de uma
-// referência de trabalho aprovada da profissional que ele acabou de
-// contratar. Chamada pelo FRONTEND (supabase.functions.invoke), não por
+// Envia por e-mail ao cliente um RESUMO das referências de trabalho
+// aprovadas da profissional que ele acabou de contratar — com nome e
+// telefone PARCIAIS (ex.: "Ana S." e "(53) •••••••-12"). Os dados
+// completos nunca saem daqui: para saber mais, o cliente fala direto com
+// a profissional que fez as indicações. Chamada pelo FRONTEND (supabase.functions.invoke), não por
 // webhook — o disparo depende do aceite explícito do disclaimer, que é
 // uma ação do usuário, não um evento puro de banco.
 //
@@ -50,10 +52,33 @@ async function enviarEmail(destinatario: string, assunto: string, corpoHtml: str
   return corpo
 }
 
-/** Só o primeiro nome — nunca o completo, para reduzir identificabilidade
- *  da referência no e-mail. */
-function primeiroNome(nomeCompleto: string) {
-  return (nomeCompleto ?? '').trim().split(/\s+/)[0] ?? 'Contato'
+/** Primeiro nome + inicial do último sobrenome ("Ana Souza Lima" → "Ana L.").
+ *  Nunca o nome completo. */
+function nomeParcial(nomeCompleto: string) {
+  const partes = (nomeCompleto ?? '').trim().split(/\s+/).filter(Boolean)
+  if (!partes.length) return 'Contato'
+  if (partes.length === 1) return partes[0]
+  return `${partes[0]} ${partes[partes.length - 1][0].toUpperCase()}.`
+}
+
+/** Mostra só o DDD e os 2 últimos dígitos ("53999881234" → "(53) •••••••-34").
+ *  Nunca o número completo. */
+function telefoneParcial(telefone: string) {
+  let d = (telefone ?? '').replace(/\D/g, '')
+  if (d.length > 11 && d.startsWith('55')) d = d.slice(2)
+  if (d.length < 4) return '••••'
+  const fim = d.slice(-2)
+  if (d.length >= 10) {
+    const ddd = d.slice(0, 2)
+    return `(${ddd}) ${'•'.repeat(d.length - 4)}-${fim}`
+  }
+  return `${'•'.repeat(d.length - 2)}-${fim}`
+}
+
+/** Escapa texto vindo do banco antes de colocar no HTML do e-mail. */
+function esc(t: string) {
+  return (t ?? '').replace(/[&<>"']/g, (c) =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!))
 }
 
 Deno.serve(async (req) => {
@@ -87,20 +112,17 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ erro: 'booking inválido para este cliente' }), { status: 403 })
     }
 
-    // Busca a referência mais recentemente aprovada e não bloqueada.
-    // Se houver mais de uma, envia só a primeira — o e-mail cita "uma
-    // referência", não é uma lista.
-    const { data: referencia } = await supabase
+    // Todas as referências aprovadas e não bloqueadas. Como o e-mail só
+    // leva dados parciais, não há por que limitar a uma.
+    const { data: referencias } = await supabase
       .from('referencias_trabalho')
       .select('id, nome_referencia, telefone')
       .eq('profissional_id', booking.profissional_id)
       .eq('status', 'aprovado')
       .eq('bloqueada', false)
       .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle()
 
-    if (!referencia) {
+    if (!referencias?.length) {
       // Pode acontecer se a referência foi bloqueada pelo admin entre o
       // momento em que a tela carregou a contagem e o clique em
       // contratar — não é erro do cliente, só não há o que enviar agora.
@@ -115,22 +137,35 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ erro: 'e-mail do cliente não encontrado' }), { status: 500 })
     }
 
+    // Nome da profissional, para o cliente saber com quem falar.
+    const { data: prof } = await supabase
+      .from('perfis')
+      .select('nome')
+      .eq('id', booking.profissional_id)
+      .maybeSingle()
+    const nomeProf = esc((prof?.nome ?? '').trim().split(/\s+/)[0] || 'a profissional')
+
+    const itens = referencias.map((r) => `
+        <li style="margin-bottom:6px">
+          <b>${esc(nomeParcial(r.nome_referencia))}</b> — ${esc(telefoneParcial(r.telefone))}
+        </li>`).join('')
+
     const html = `
       <p>Você contratou um serviço pelo Zelo. Conforme informado antes de
-      confirmar, aqui está o contato de uma referência de trabalho
-      confirmada da profissional:</p>
-      <ul>
-        <li><b>Nome:</b> ${primeiroNome(referencia.nome_referencia)}</li>
-        <li><b>Telefone:</b> ${referencia.telefone}</li>
+      confirmar, a profissional <b>${nomeProf}</b> tem
+      ${referencias.length === 1 ? 'uma referência de trabalho confirmada' : `${referencias.length} referências de trabalho confirmadas`}
+      pela nossa equipe:</p>
+      <ul>${itens}
       </ul>
-      <p>Use este contato apenas para confirmar a experiência relatada,
-      sob sua responsabilidade — conforme você concordou antes de
-      contratar.</p>
+      <p>Por segurança e privacidade de quem fez a indicação, o Zelo não
+      envia o nome completo nem o telefone completo.</p>
+      <p><b>Para mais informações sobre essas referências, entre em contato
+      direto com ${nomeProf}, que fez as indicações.</b></p>
     `
 
     let resultado = 'enviado'
     try {
-      await enviarEmail(destino, 'Referência de trabalho — Zelo', html)
+      await enviarEmail(destino, 'Referências de trabalho — Zelo', html)
     } catch (e) {
       resultado = `falhou: ${e.message}`
     }
@@ -138,12 +173,14 @@ Deno.serve(async (req) => {
     // Log de divulgação: registra que ESTE cliente recebeu ESTA
     // referência, quando, e que aceitou o disclaimer — parte do dever de
     // prestar contas do tratamento de dado de terceiro (migração 27).
-    await supabase.from('divulgacoes_referencia').insert({
-      referencia_id: referencia.id,
-      booking_id: booking.id,
-      cliente_id: clienteId,
-      aceitou_disclaimer: true
-    })
+    await supabase.from('divulgacoes_referencia').insert(
+      referencias.map((r) => ({
+        referencia_id: r.id,
+        booking_id: booking.id,
+        cliente_id: clienteId,
+        aceitou_disclaimer: true
+      }))
+    )
 
     return new Response(JSON.stringify({ ok: true, resultado }), {
       headers: { 'Content-Type': 'application/json' }

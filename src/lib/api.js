@@ -923,6 +923,20 @@ export async function listarServicosDisponiveis(categoriaId) {
   return data
 }
 
+/**
+ * Todas as subopções de todas as categorias, de uma vez — usado no
+ * cadastro em etapas, que precisa saber logo ao escolher as categorias
+ * quais delas ganham uma tela de especialidades.
+ */
+export async function listarTodosServicosDisponiveis() {
+  const { data, error } = await supabase
+    .from('servicos_disponiveis')
+    .select('id, nome, ordem, categoria_id')
+    .order('ordem')
+  if (error) throw error
+  return data
+}
+
 /** Quais serviços específicos a profissional já marcou. */
 export async function obterServicosSelecionados(profissionalId) {
   const { data, error } = await supabase
