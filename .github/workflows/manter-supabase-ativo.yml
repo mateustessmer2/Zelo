@@ -1,0 +1,32 @@
+# ============================================================================
+# Mantém o projeto do Supabase ativo (plano gratuito)
+# ----------------------------------------------------------------------------
+# O Supabase pausa projetos gratuitos com pouca atividade em 7 dias.
+# Esta automação faz uma leitura simples (lista de categorias, que já é
+# pública) duas vezes por dia — o suficiente para contar como atividade.
+#
+# Precisa de dois secrets no GitHub (Settings → Secrets and variables →
+# Actions → New repository secret):
+#   SUPABASE_URL       — a mesma VITE_SUPABASE_URL do Netlify
+#   SUPABASE_ANON_KEY  — a mesma VITE_SUPABASE_ANON_KEY do Netlify
+# ============================================================================
+
+name: Manter Supabase ativo
+
+on:
+  schedule:
+    - cron: '0 9,21 * * *'   # 6h e 18h no horário de Brasília
+  workflow_dispatch:          # permite rodar na mão para testar
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Consultar o banco
+        run: |
+          status=$(curl -s -o /dev/null -w "%{http_code}" \
+            "${{ secrets.SUPABASE_URL }}/rest/v1/categorias?select=id&limit=1" \
+            -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}")
+          echo "Resposta do Supabase: $status"
+          if [ "$status" != "200" ]; then exit 1; fi
